@@ -25,41 +25,26 @@ const double Ki = 5;
 const double Kd = 1;
 const int servo_0 = 90;
 
-double valueToUpdate = 0.0; // Declare the variable valueToUpdate
-
-
 // The PID part
 PID myPIDx(&x, &correct_x, &Cal_x, Kp, Ki, Kd, DIRECT);
 PID myPIDz(&z, &correct_z, &Cal_z, Kp, Ki, Kd, DIRECT);
 
-// The setup for server
+
+const char* ssid = "JULIAN";
+const char* password = "12345678";
+
 AsyncWebServer server(80);
 
-const char *ssid = "JULIAN";
-const char *password = "12345678";
-
-// the setup function for connecting to wifi
-void connect_wifi()
-{
+void wifiConnect() {
   WiFi.begin(ssid, password);
-  Serial.print("Connecting to WiFi");
-  while (WiFi.status() != WL_CONNECTED)
-  {
-    delay(1000);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
     Serial.print(".");
   }
-  Serial.println("Connected to WiFi");
-}
-
-// the setup functions for hosting a web server for posting the gyro data
-void setup_webserver()
-{
-  server.begin();
-  // print the IP address
   Serial.println(WiFi.localIP());
+  server.begin();
 }
 
-// Reads the gyro and calculates the angle
 void readGyro()
 {
   Wire.beginTransmission(MPU_addr);
@@ -108,14 +93,29 @@ void calibrate()
   myPIDz.SetMode(AUTOMATIC);
 }
 
-// the function for the PID
-void PID_functie()
+String PID_functie()
 {
   readGyro();
 
   myPIDx.Compute();
   myPIDz.Compute();
 
+  String x_str = String(x); // Assign value to x_str
+  String cal_x_str = String(Cal_x); // Assign value to cal_x_str
+  String correct_x_str = String(correct_x); // Assign value to correct_x_str
+  String z_str = String(z); // Assign value to z_str
+  String cal_z_str = String(Cal_z); // Assign value to cal_z_str
+  String correct_z_str = String(correct_z); // Assign value to correct_z_str
+
+  // Combine all strings into 1 print
+  String output = "x: " + x_str + "  --- cal_x: " + cal_x_str + "  --- correct_x: " + correct_x_str + "    ------- z: " + z_str + "  --- cal_z: " + cal_z_str + "  --- correct_z: " + correct_z_str;
+
+  String newline_output = output + "\n";
+
+  //Serial.println(output);
+  return newline_output;
+
+/*
   Serial.println("x-----------");
   Serial.print("Input: ");
   Serial.println(x);
@@ -131,19 +131,24 @@ void PID_functie()
   Serial.println(Cal_z);
   Serial.print("Output: ");
   Serial.println(correct_z);
+  */
+
   delay(5);
 }
 
-// a function that posts hello world on a new line on the webserver everytime the fucntion is called using ajax ON A NEW LINE
-void hello_world()
-{
-  server.on("/hello", HTTP_GET, [](AsyncWebServerRequest *request) {
-    request->send(200, "text/plain", "Hello World");
+void post_output(){
+    server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(200, "text/html", "<html><body><script>setInterval(function(){fetch('/newline_output').then(response => response.text()).then(data => document.getElementById('newline_output').innerText = data);}, 1000);</script><h1 id='newline_output'></h1></body></html>");
   });
+
+  server.on("/newline_output", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(200, "text/plain", PID_functie());
+  });
+
+  server.begin();
 }
 
-void setup()
-{
+void setup() {
   Wire.begin();
   Wire.beginTransmission(MPU_addr);
   Wire.write(0x6B);
@@ -151,14 +156,13 @@ void setup()
   Wire.endTransmission(true);
   Serial.begin(115200);
 
-  connect_wifi();
-  setup_webserver();
+  wifiConnect();
   calibrate();
 }
 
-void loop()
-{
-  hello_world();
-  delay(100);
-}
 
+
+void loop() {
+  post_output();
+  delay(1000);
+}
