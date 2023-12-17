@@ -77,8 +77,6 @@ void loop() {
     correct_z = -1 * correct_z;
   }
 
-
-
   Serial.print("\t");
   Serial.print("x");
   Serial.print("\t");

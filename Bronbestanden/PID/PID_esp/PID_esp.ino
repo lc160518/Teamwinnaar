@@ -1,4 +1,5 @@
 #include <Wire.h>
+#include <ESP32Servo.h>
 #include <Arduino.h>
 #include <PID_v1.h>
 
@@ -12,6 +13,9 @@ double x;
 double y;
 double z;
 
+bool reverseX;
+bool reverseZ;
+
 double x_tot;
 double z_tot;
 
@@ -21,9 +25,22 @@ double Cal_z;
 double correct_x;
 double correct_z;
 
+// Determines how much the correction has to go
+double weight = 1;
+
 const double Kp = 2;
 const double Ki = 5;
 const double Kd = 1;
+
+Servo servo_x1;
+Servo servo_x2;
+Servo servo_z1;
+Servo servo_z2;
+
+const int servo_x1_pin = 3;
+const int servo_x2_pin = 5;
+const int servo_z1_pin = 9;
+const int servo_z2_pin = 10;
 
 const int servo_0 = 90;
 
@@ -54,7 +71,7 @@ void readGyro(){
   delay(400);
 }
 
-void setup() {
+void setup() {  
   // Starts the communication with the gyro
   Wire.begin();
   Wire.beginTransmission(MPU_addr);
@@ -62,6 +79,22 @@ void setup() {
   Wire.write(0);
   Wire.endTransmission(true);
   Serial.begin(115200);
+
+  // connect the servo's
+  servo_x1.setPeriodHertz(50);    // standard 50 hz servo
+	servo_x1.attach(servo_x1_pin, 500, 2400); // attaches the servo to it's pin
+  servo_x2.setPeriodHertz(50);    // standard 50 hz servo
+	servo_x2.attach(servo_x2_pin, 500, 2400); // attaches the servo to it's pin
+  servo_z1.setPeriodHertz(50);    // standard 50 hz servo
+	servo_z1.attach(servo_z1_pin, 500, 2400); // attaches the servo to it's pin
+  servo_z2.setPeriodHertz(50);    // standard 50 hz servo
+	servo_z2.attach(servo_z2_pin, 500, 2400); // attaches the servo to it's pin
+
+  // reset the servo to it's base positions
+  servo_x1.write(servo_0);
+  servo_x2.write(servo_0);
+  servo_z1.write(servo_0);
+  servo_z2.write(servo_0);
 
   Serial.print("Calibrating");
   // calibrate the x and z values
@@ -87,26 +120,70 @@ void setup() {
 void loop() {
   // Measures the location of the gyro
   readGyro();
+
+  if(x > Cal_x){
+    myPIDx.SetControllerDirection(REVERSE);
+    reverseX = true;
+  }
+  else{
+    myPIDx.SetControllerDirection(DIRECT);
+    reverseX= false;
+  }
+
+  if(z > Cal_z){
+    myPIDz.SetControllerDirection(REVERSE);
+    reverseZ = true;
+  }
+  else{
+    myPIDz.SetControllerDirection(DIRECT);
+    reverseZ = false;
+
+  z = -1 * correct_z;
+  }
   
   // The PID part
   myPIDx.Compute();
   myPIDz.Compute();
 
-  Serial.println("x-----------");
-  Serial.print("Input: ");
-  Serial.println(x);
-  Serial.print("Setpoint: ");
-  Serial.println(Cal_x);
-  Serial.print("Output: ");
-  Serial.println(correct_x);
+  // The PID value will always be positive so this is to make it go two ways instead of ons
+  if(reverseX){
+    correct_x = -1 * correct_x;
+  }
+  if(reverseZ){
+    correct_z = -1 * correct_z;
+  }
+  
+  // print the values just to be safe
+  Serial.print("\t");
+  Serial.print("x");
+  Serial.print("\t");
+  Serial.println("z");
 
-  Serial.println("z-----------");
-  Serial.print("Input: ");
+  Serial.print("Input:");
+  Serial.print("\t");
+  Serial.print(x);
+  Serial.print("\t");
   Serial.println(z);
-  Serial.print("Setpoint: ");
+
+  Serial.print("Cal:");
+  Serial.print("\t");
+  Serial.print(Cal_x);
+  Serial.print("\t");
   Serial.println(Cal_z);
-  Serial.print("Output: ");
+
+  Serial.print("Output:");
+  Serial.print("\t");
+  Serial.print(correct_x);
+  Serial.print("\t");
   Serial.println(correct_z);
+
+
+  // Zet de servo's op de goede plek
+  servo_x1.write(servo_0 - (weight * correct_x));
+  servo_x2.write(servo_0 + (weight * correct_x));
+  servo_z1.write(servo_0 - (weight * correct_z));
+  servo_z2.write(servo_0 + (weight * correct_z));
+  
   delay(5);
 }
 
