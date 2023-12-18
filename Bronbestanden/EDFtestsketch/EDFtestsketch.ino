@@ -1,7 +1,7 @@
 // Definieer de variabelen voor de Arduino aansluitingen
-const int potPin = D32; // De potmeter is verbonden met analoge pin A0
-const int escPin = D16; // De esc is verbonden met digitale pin 9 (PWM)
-const int togglePin = D25; // De toggle-knop is verbonden met digitale pin 2
+#define potPin 32 // De potmeter is verbonden met analoge pin D32
+#define escPin 16 // De esc is verbonden met digitale pin D16
+#define togglePin 25 // De toggle-knop is verbonden met digitale pin D25
 
 // Definieer de variabelen voor de potmeter en de esc
 int potValue; // De waarde van de potmeter (0-1023)
@@ -64,4 +64,5 @@ void loop() {
     digitalWrite(escPin, LOW);
     delayMicroseconds(19000);
   }
+  delayMicroseconds(10000);
 }
