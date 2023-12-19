@@ -37,10 +37,10 @@ Servo servo_x2;
 Servo servo_z1;
 Servo servo_z2;
 
-const int servo_x1_pin = 3;
-const int servo_x2_pin = 5;
-const int servo_z1_pin = 9;
-const int servo_z2_pin = 10;
+const int servo_x1_pin = 34;
+const int servo_x2_pin = 35;
+const int servo_z1_pin = 32;
+const int servo_z2_pin = 33;
 
 const int servo_0 = 90;
 
