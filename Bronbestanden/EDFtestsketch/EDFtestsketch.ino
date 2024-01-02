@@ -1,7 +1,7 @@
 // Definieer de variabelen voor de Arduino aansluitingen
-#define potPin 32 // De potmeter is verbonden met analoge pin D32
+#define potPin 4 // De potmeter is verbonden met analoge pin D2
 #define escPin 16 // De esc is verbonden met digitale pin D16
-#define togglePin 25 // De toggle-knop is verbonden met digitale pin D25
+#define togglePin 18 // De toggle-knop is verbonden met digitale pin D18
 
 // Definieer de variabelen voor de potmeter en de esc
 int potValue; // De waarde van de potmeter (0-1023)
@@ -21,7 +21,7 @@ void setup() {
   pinMode(togglePin, INPUT_PULLUP); // Gebruik de interne pull-up weerstand voor de toggle-knop
 
   // Start de seriële communicatie met de console
-  Serial.begin(9600);
+  Serial.begin(115200);
 }
 
 void loop() {
@@ -42,9 +42,11 @@ void loop() {
   if (power) {
     potValue = analogRead(potPin);
     throttle = map(potValue, 0, 1023, 0, 100);
+    throttle = constrain(throttle, 0, 100);
 
     // Zet de throttle waarde om naar een esc waarde (1000-2000)
     escValue = map(throttle, 0, 100, 1000, 2000);
+    escValue = constrain(escValue, 1000, 2000);
 
     // Stuur de esc waarde naar de esc pin met een pulsduur van escValue microseconden
     digitalWrite(escPin, HIGH);

@@ -4,9 +4,9 @@
 #include <PID_v1.h>
 
 // Definieer de variabelen voor de Arduino aansluitingen
-#define potPin  // De potmeter is verbonden met analoge pin ??
-#define escPin x // De esc is verbonden met digitale pin ??
-#define togglePin x // De toggle-knop is verbonden met digitale pin ??
+#define potPin 4 // De potmeter is verbonden met analoge pin D4
+#define escPin 5 // De esc is verbonden met digitale pin D5
+#define togglePin 18 // De toggle-knop is verbonden met digitale pin D18
 
 // Definieer de variabelen voor de potmeter en de esc
 int potValue; // De waarde van de potmeter (0-1023)
@@ -71,9 +71,12 @@ void motorBusiness(){
   // Controleer of de toggle-knop is ingedrukt en de vorige status niet hetzelfde is
   if (toggleState == LOW && prevToggleState == HIGH) {
     power = !power; // Toggle de stroomtoestand
-    Serial.print("EDF is ");
-    Serial.println(power ? "on" : "off"); // Toon de nieuwe toestand in de console
   }
+
+  Serial.print("EDF is ");
+  Serial.println(power ? "on" : "off"); // Toon de nieuwe toestand in de console
+  Serial.print("power: ");
+  Serial.println(power);
 
   // Bewaar de huidige status van de toggle-knop voor de volgende iteratie
   prevToggleState = toggleState;
@@ -96,6 +99,7 @@ void motorBusiness(){
     Serial.print("Throttle: ");
     Serial.print(throttle);
     Serial.println("%");
+    Serial.print("Speed controller: ");
     Serial.println(escValue);
   } else {
     // Als de stroomtoestand false is, stuur dan een esc waarde van 1000 naar de esc pin om de EDF uit te zetten
@@ -125,8 +129,6 @@ void readGyro(){
   x= RAD_TO_DEG * (atan2(-yAng, -zAng)+PI);
   y= RAD_TO_DEG * (atan2(-xAng, -zAng)+PI);
   z= RAD_TO_DEG * (atan2(-yAng, -xAng)+PI);
-
-  delay(400);
 }
 
 void printValues(){
@@ -256,5 +258,5 @@ void loop() {
   servo_z1.write(servo_0 - (weight * correct_z));
   servo_z2.write(servo_0 + (weight * correct_z));
   
-  delay(5);
+  delay(10);
 }
