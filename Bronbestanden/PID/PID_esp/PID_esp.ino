@@ -4,9 +4,9 @@
 #include <PID_v1.h>
 
 // Definieer de variabelen voor de Arduino aansluitingen
-#define potPin 4 // De potmeter is verbonden met analoge pin D4
-#define escPin 5 // De esc is verbonden met digitale pin D5
-#define togglePin 18 // De toggle-knop is verbonden met digitale pin D18
+#define potPin 34 // De potmeter is verbonden met analoge pin D4
+#define escPin 18 // De esc is verbonden met digitale pin D5
+#define togglePin 35 // De toggle-knop is verbonden met digitale pin D18
 
 // Definieer de variabelen voor de potmeter en de esc
 int potValue; // De waarde van de potmeter (0-1023)
@@ -46,17 +46,17 @@ double weight = 1;
 
 const double Kp = 0.02;
 const double Ki = 0.01;
-const double Kd = 0.01;
+const double Kd = 0.00000005;
 
 Servo servo_x1;
 Servo servo_x2;
 Servo servo_z1;
 Servo servo_z2;
 
-const int servo_x1_pin = 26; //x = paars = 26
-const int servo_x2_pin = 32; //x = zwart == 33
-const int servo_z1_pin = 33; //z = groen = 32
-const int servo_z2_pin = 25; //z wit = 25
+const int servo_x1_pin = 14;
+const int servo_x2_pin = 13;
+const int servo_z1_pin = 27;
+const int servo_z2_pin = 12;
 
 const int servo_0 = 90;
 
@@ -85,9 +85,11 @@ void motorBusiness(){
   if (power) {
     potValue = analogRead(potPin);
     throttle = map(potValue, 0, 1023, 0, 100);
+    throttle = constrain(throttle, 0, 100);
 
     // Zet de throttle waarde om naar een esc waarde (1000-2000)
     escValue = map(throttle, 0, 100, 1000, 2000);
+    escValue = constrain(escValue, 1000, 2000);
 
     // Stuur de esc waarde naar de esc pin met een pulsduur van escValue microseconden
     digitalWrite(escPin, HIGH);
@@ -113,7 +115,7 @@ void motorBusiness(){
 
 void readGyro(){
   Wire.beginTransmission(MPU_addr);
-  Wire.write(0x3B);
+  Wire.write(0x68);
   Wire.endTransmission(false);
   Wire.requestFrom(MPU_addr,14, 1);
   AcX=Wire.read()<<8|Wire.read();
