@@ -3,7 +3,7 @@ const int MPU=0x68;
 int16_t AcX,AcY,AcZ,Tmp,GyX,GyY,GyZ;
 
 void  setup(){
-  Wire.begin(32, 33);
+  Wire.begin(21, 22);
   Wire.beginTransmission(MPU);
   Wire.write(0x6B);  
   Wire.write(0);    
