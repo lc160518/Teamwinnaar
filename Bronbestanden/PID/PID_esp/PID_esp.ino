@@ -242,8 +242,9 @@ void loop() {
   
   // The PID part
   myPIDx.Compute();
+  map(correct_x, 0, 255, 0, 90);
   myPIDz.Compute();
-
+  map(correct_x, 0, 255, 0, 90);
   printValues();
 
   // The PID value will always be positive so this is to make it go two ways instead of ons
