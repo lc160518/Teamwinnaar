@@ -10,8 +10,20 @@ float LoopTimer; // geen idee wat dit is
 
 float KalmanAngleRoll = 0, KalmanUncertaintyAngleRoll = 2*2; // waardes van de kalman filter, 0 is de start waarde en 2*2 is de start onzekerheid
 float KalmanAnglePitch = 0, KalmanUncertaintyAnglePitch = 2*2;
-
 float Kalman1DOutput[] = {0, 0}; // array voor de output van de kalman filter, state en uncertainty
+
+float DesiredRateRoll, DesiredRatePitch, DesiredRateYaw; // waardes van de gewenste rotatie
+float ErrorRateRoll, ErrorRatePitch, ErrorRateYaw; // waardes van de error van de rotatie
+float InputRoll, InputThrottle, InputPitch, InputYaw; // waardes van de input van de PID
+float PrevErrorRateRoll, PrevErrorRatePitch, PrevErrorRateYaw; // waardes van de vorige error van de rotatie
+float PrevItermRateRoll, PrevItermRatePitch, PrevItermRateYaw; // waardes van de vorige Iterm van de rotatie
+float PIDReturn[] = {0, 0, 0}; // array voor de output van de PID, roll, pitch en yaw
+
+float PRateRoll = 0.6; float PRatePitch = PRateRoll; float PRateYaw = 2; // waardes van de P van de PID
+float IRateRoll = 3.5; float IRatePitch = IRateRoll; float IRateYaw = 12; // waardes van de I van de PID
+float DRateRoll = 0.03; float DRatePitch = DRateRoll; float DRateYaw = 0; // waardes van de D van de PID
+
+float MotorInput1, MotorInput2, MotorInput3, MotorInput4; // waardes van de input van de motoren
 
 void kalman_1d(float KalmanState, float KalmanUncertainty, float KalmanInput , float KalmanMeasurement) { // functie van de kalman filter, witchcraft
     KalmanState=KalmanState+0.004*KalmanInput;
@@ -59,6 +71,7 @@ void kalman_1d(float KalmanState, float KalmanUncertainty, float KalmanInput , f
     RateRoll = (float)GyroX / 65.5;
     RatePitch = (float)GyroY / 65.5;
     RateYaw = (float)GyroZ / 65.5;
+\
 
     AccX= (float)AccXLSB / 4096 - 0.07; // hier zetten we de 16 bit waardes om naar g's en corrigeren we de waardes voor de offset van de acc.
     AccY = (float)AccYLSB / 4096 - 0.01;
@@ -66,6 +79,30 @@ void kalman_1d(float KalmanState, float KalmanUncertainty, float KalmanInput , f
 
     AngleRoll = atan(AccY /sqrt(AccX * AccX + AccZ * AccZ))*1/(3.142/180); // hier berekenen we de hoek van het board ofwel witchcraft.
     AnglePitch = atan(AccX /sqrt(AccY * AccY + AccZ * AccZ))*1/(3.142/180);
+}
+
+void PID_equation(float Error, float P, float I, float D, float PrevError, float PrevIterm){
+    float Pterm = P * Error; // berekenen van de Pterm
+    float Iterm = PrevIterm + I * (Error + PrevError)*0.004/2; // berekenen van de Iterm
+    if (Iterm > 400) Iterm = 400; // limiteren van de Iterm
+    else if (Iterm < -400) Iterm = -400;
+    float Dterm = D * (Error - PrevError)/0.004; // berekenen van de Dterm
+    float PIDOutput = Pterm + Iterm + Dterm; // berekenen van de PID output
+    if (PIDOutput > 400) PIDOutput = 400; // limiteren van de PID output
+    else if (PIDOutput < -400) PIDOutput = -400; 
+
+    PIDReturn[0] = PIDOutput; // output van de PID
+    PIDReturn[1] = Error;
+    PIDReturn[2] = Iterm; 
+}
+
+void reset_pid(void){
+    PrevErrorRateRoll = 0; // resetten van de PID
+    PrevErrorRatePitch = 0;
+    PrevErrorRateYaw = 0;
+    PrevItermRateRoll = 0;
+    PrevItermRatePitch = 0;
+    PrevItermRateYaw = 0;
 }
 
 void setup() {
@@ -94,6 +131,10 @@ void loop() {
     RateRoll -= RateCalibrationRoll; // correcte waardes van de gyro
     RatePitch -= RateCalibrationPitch;
     RateYaw -= RateCalibrationYaw;
+
+    ErrorRateRoll = DesiredRateRoll - RateRoll; // berekenen van de error van de rotatie
+    ErrorRatePitch = DesiredRatePitch - RatePitch;
+    ErrorRateYaw = DesiredRateYaw - RateYaw;
 /*
     Serial.print("RateRoll: "); ongebruikt code van raw waardes van de gyro
     Serial.print(RateRoll);
@@ -119,6 +160,7 @@ void loop() {
 
     */
 
+
    kalman_1d(KalmanAngleRoll, KalmanUncertaintyAngleRoll, RateRoll, AngleRoll); // kalman filter toepassen op de hoek
    KalmanAngleRoll = Kalman1DOutput[0];
     KalmanUncertaintyAngleRoll = Kalman1DOutput[1]; 
@@ -132,5 +174,21 @@ void loop() {
     Serial.print(" Pitch Angle [deg] ");
     Serial.println(KalmanAnglePitch);
     delay(50); // tijd nodig om nieuwe waardes te meten
+
+    PID_equation(ErrorRateRoll, PRateRoll, IRateRoll, DRateRoll, PrevErrorRateRoll, PrevItermRateRoll);
+       InputRoll=PIDReturn[0]; // output van de PID
+       PrevErrorRateRoll=PIDReturn[1]; 
+       PrevItermRateRoll=PIDReturn[2];
+  PID_equation(ErrorRatePitch, PRatePitch, IRatePitch, DRatePitch, PrevErrorRatePitch, PrevItermRatePitch);
+       InputPitch=PIDReturn[0]; 
+       PrevErrorRatePitch=PIDReturn[1]; 
+       PrevItermRatePitch=PIDReturn[2];
+  PID_equation(ErrorRateYaw, PRateYaw,
+       IRateYaw, DRateYaw, PrevErrorRateYaw,
+       PrevItermRateYaw);
+       InputYaw=PIDReturn[0]; 
+       PrevErrorRateYaw=PIDReturn[1]; 
+       PrevItermRateYaw=PIDReturn[2];
+
 }
 
