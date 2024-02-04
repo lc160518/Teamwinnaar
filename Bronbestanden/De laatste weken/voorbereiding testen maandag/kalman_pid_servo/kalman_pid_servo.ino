@@ -153,7 +153,7 @@ void setup()
   pinMode(LED_BUILTIN, OUTPUT);
   digitalWrite(LED_BUILTIN, HIGH);
 
-  servo1.attach(SERVO_PIN1); // aansturen van de motoren
+  servo1.attach(SERVO_PIN1); // aansturen van de servo's
   servo2.attach(SERVO_PIN2);
   servo3.attach(SERVO_PIN3);
   servo4.attach(SERVO_PIN4);
@@ -255,4 +255,9 @@ void loop()
   InputYaw = PIDReturn[0];
   PrevErrorRateYaw = PIDReturn[1];
   PrevItermRateYaw = PIDReturn[2];
+
+  servo1.write(InputRoll);
+  servo2.write(-InputRoll);
+  servo3.write(InputPitch);
+  servo4.write(-InputPitch);
 }
