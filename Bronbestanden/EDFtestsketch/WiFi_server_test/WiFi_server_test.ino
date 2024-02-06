@@ -1,15 +1,12 @@
 #include <WiFi.h>
 #include <WebServer.h>
 
-const char *ssid = "esp32raket";       // Enter your WiFi SSID
+const char *ssid = "JULIAN";       // Enter your WiFi SSID
 const char *password = "12345678"; // Enter your WiFi Password
 
 WebServer server(80);
 
 int sliderValue = 0; // Initial value
-int escValue= 1000;
-
-int escPin = 19; // PWM pin for the ESC
 
 void handleRoot()
 {
@@ -20,7 +17,7 @@ void handleRoot()
   page += "<h1>ESP32 Slider Control</h1>\n";
   page += "<input type=\"range\" min=\"0\" max=\"100\" value=\"" + String(sliderValue) + "\" class=\"slider\" id=\"myRange\" name=\"value\" style=\"width: 80%;\">\n"; // Adjusted size here
   page += "<p>Value: <span id=\"demo\">" + String(sliderValue) + "</span></p>\n";
-  page += "<button onclick=\"setToZero()\" style=\"font-size: 30px; padding: 20px;\">ABORT</button>\n"; // Larger button with increased font size and padding
+  page += "<button onclick=\"setToZero()\" style=\"font-size: 30px; padding: 20px;\">Set to 0</button>\n"; // Larger button with increased font size and padding
   page += "<script>\n";
   page += "var slider = document.getElementById(\"myRange\");\n";
   page += "var output = document.getElementById(\"demo\");\n";
@@ -63,20 +60,14 @@ void handleUpdate()
     sliderValue = valueStr.toInt();
     Serial.print("Slider Value: ");
     Serial.println(sliderValue); // Print slider value to Serial Monitor
-    escValue = map(sliderValue, 0, 100, 1000, 2000);
-    constrain(escValue, 1000, 2000);
-    Serial.print("ESC Value: ");
-    Serial.println(escValue); // Print ESC value to Serial Monitor
   }
   server.send(200, "text/plain", "OK");
 }
 
 void setup()
 {
-  pinMode(escPin, OUTPUT);
-
   Serial.begin(115200);
-  WiFi.mode(WIFI_STA);
+
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED)
   {
@@ -95,18 +86,4 @@ void setup()
 void loop()
 {
   server.handleClient();
-
-// Stuur de esc waarde naar de esc pin met een pulsduur van escValue microseconden
-  digitalWrite(escPin, HIGH);
-  delayMicroseconds(escValue);
-  digitalWrite(escPin, LOW);
-  delayMicroseconds(20000 - escValue);
-
-  // Toon de throttle waarde op de console
-  Serial.print("Throttle: ");
-  Serial.print(sliderValue);
-  Serial.println("%");
-  Serial.println(escValue);
-
-  delayMicroseconds(10000);
 }
