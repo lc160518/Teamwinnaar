@@ -1,5 +1,12 @@
+<<<<<<< Updated upstream
 #include <WiFi.h>
 #include <WebServer.h>
+=======
+// Definieer de variabelen voor de Arduino aansluitingen
+int potPin = 2; // De potmeter is verbonden met analoge pin D2
+int escPin = 3; // De esc is verbonden met digitale pin D16
+int togglePin = 5; // De toggle-knop is verbonden met digitale pin D18
+>>>>>>> Stashed changes
 
 const char *ssid = "ESP32ACCESS";       // Enter your WiFi SSID
 const char *password = "12345678"; // Enter your WiFi Password
@@ -11,6 +18,7 @@ int escValue= 1000;
 
 escPin = 18; // PWM pin for the ESC
 
+<<<<<<< Updated upstream
 void handleRoot()
 {
   String page = "<!DOCTYPE html>\n";
@@ -53,6 +61,10 @@ void handleRoot()
   page += "</body>\n";
   page += "</html>\n";
   server.send(200, "text/html", page);
+=======
+  // Start de seriële communicatie met de console
+  Serial.begin(9600);
+>>>>>>> Stashed changes
 }
 
 void handleUpdate()
