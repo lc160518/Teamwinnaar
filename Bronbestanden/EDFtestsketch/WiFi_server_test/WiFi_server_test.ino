@@ -1,7 +1,7 @@
 #include <WiFi.h>
 #include <WebServer.h>
 
-const char *ssid = "JULIAN";       // Enter your WiFi SSID
+const char *ssid = "esp32raket";       // Enter your WiFi SSID
 const char *password = "12345678"; // Enter your WiFi Password
 
 WebServer server(80);
