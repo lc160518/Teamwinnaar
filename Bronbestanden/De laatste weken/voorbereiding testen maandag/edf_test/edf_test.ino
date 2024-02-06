@@ -7,9 +7,9 @@ const char *password = "12345678"; // Enter your WiFi Password
 WebServer server(80);
 
 int sliderValue = 0; // Initial value
-int escValue= 1000;
+int escValue = 1000;
 
-int escPin = 19; // PWM pin for the ESC
+int escPin = 18; // PWM pin for the ESC
 
 void handleRoot()
 {
@@ -64,7 +64,7 @@ void handleUpdate()
     Serial.print("Slider Value: ");
     Serial.println(sliderValue); // Print slider value to Serial Monitor
     escValue = map(sliderValue, 0, 100, 1000, 2000);
-    constrain(escValue, 1000, 2000);
+    escValue = constrain(escValue, 1000, 2000); // Ensure escValue stays within range
     Serial.print("ESC Value: ");
     Serial.println(escValue); // Print ESC value to Serial Monitor
   }
@@ -72,10 +72,9 @@ void handleUpdate()
 }
 
 void setup()
-{
-  pinMode(escPin, OUTPUT);
-
+{ 
   Serial.begin(115200);
+<<<<<<< Updated upstream
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED)
@@ -85,26 +84,45 @@ void setup()
   }
   Serial.println("Connected to WiFi");
 
+=======
+  Serial.println("manke0");
+  pinMode(escPin, OUTPUT);
+  
+  
+  Serial.println("manke1");
+  // use esp32 as the access point
+  WiFi.mode(WIFI_AP); // Corrected typo
+Serial.println("manke2");
+  WiFi.softAP(ssid, password);
+Serial.println("manke3");
+  IPAddress IP = WiFi.softAPIP();
+  Serial.print("AP IP address: ");
+  Serial.println(IP);
+Serial.println("manke4");
+>>>>>>> Stashed changes
   server.on("/", HTTP_GET, handleRoot);
   server.on("/update", HTTP_GET, handleUpdate);
 
   server.begin();
   Serial.println("HTTP server started");
+
+  delay(5000);
 }
 
 void loop()
 {
   server.handleClient();
 
-// Stuur de esc waarde naar de esc pin met een pulsduur van escValue microseconden
+  // Stuur de esc waarde naar de esc pin met een pulsduur van escValue microseconden
   digitalWrite(escPin, HIGH);
   delayMicroseconds(escValue);
   digitalWrite(escPin, LOW);
   delayMicroseconds(20000 - escValue);
 
   // Toon de throttle waarde op de console
+  float throttle = map(sliderValue, 0, 100, 0, 100); // Calculate throttle percentage
   Serial.print("Throttle: ");
-  Serial.print(sliderValue);
+  Serial.print(throttle);
   Serial.println("%");
   Serial.println(escValue);
 
