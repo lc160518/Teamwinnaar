@@ -61,20 +61,16 @@ void handleUpdate()
   {
     String valueStr = server.arg("value");
     sliderValue = valueStr.toInt();
-    Serial.print("Slider Value: ");
-    Serial.println(sliderValue); // Print slider value to Serial Monitor
     escValue = map(sliderValue, 0, 100, 1000, 2000);
     constrain(escValue, 1000, 2000);
-    Serial.print("ESC Value: ");
-    Serial.println(escValue); // Print ESC value to Serial Monitor
   }
   server.send(200, "text/plain", "OK");
 }
 
 void setup()
 {
- // pinMode(escPin, OUTPUT);
-  
+ ///////////////////////////////////////////// pinMode(escPin, OUTPUT); DECOMMENT ALS JE DE CODE GAAT RUNNEN!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   Serial.begin(115200);
   delay(10);
 
