@@ -1,70 +1,112 @@
-// Definieer de variabelen voor de Arduino aansluitingen
-#define potPin 4 // De potmeter is verbonden met analoge pin D2
-#define escPin 16 // De esc is verbonden met digitale pin D16
-#define togglePin 18 // De toggle-knop is verbonden met digitale pin D18
+#include <WiFi.h>
+#include <WebServer.h>
 
-// Definieer de variabelen voor de potmeter en de esc
-int potValue; // De waarde van de potmeter (0-1023)
-int throttle; // De throttle waarde (0-100)
-int escValue; // De esc waarde (1000-2000)
+const char *ssid = "ESP32ACCESS";       // Enter your WiFi SSID
+const char *password = "12345678"; // Enter your WiFi Password
 
-// Definieer de variabele voor de stroomtoestand van EDF
-bool power = false; // De stroomtoestand van de EDF (true of false)
+WebServer server(80);
 
-// Definieer de variabele voor de vorige status van de toggle-knop
-int prevToggleState = HIGH;
+int sliderValue = 0; // Initial value
+int escValue= 1000;
 
-void setup() {
-  // Zet de pinnen als output of input
-  pinMode(potPin, INPUT);
-  pinMode(escPin, OUTPUT);
-  pinMode(togglePin, INPUT_PULLUP); // Gebruik de interne pull-up weerstand voor de toggle-knop
+escPin = 18; // PWM pin for the ESC
 
-  // Start de seriële communicatie met de console
-  Serial.begin(115200);
+void handleRoot()
+{
+  String page = "<!DOCTYPE html>\n";
+  page += "<html>\n";
+  page += "<head><title>ESP32 Slider Control</title></head>\n";
+  page += "<body>\n";
+  page += "<h1>ESP32 Slider Control</h1>\n";
+  page += "<input type=\"range\" min=\"0\" max=\"100\" value=\"" + String(sliderValue) + "\" class=\"slider\" id=\"myRange\" name=\"value\" style=\"width: 80%;\">\n"; // Adjusted size here
+  page += "<p>Value: <span id=\"demo\">" + String(sliderValue) + "</span></p>\n";
+  page += "<button onclick=\"setToZero()\" style=\"font-size: 30px; padding: 20px;\">ABORT</button>\n"; // Larger button with increased font size and padding
+  page += "<script>\n";
+  page += "var slider = document.getElementById(\"myRange\");\n";
+  page += "var output = document.getElementById(\"demo\");\n";
+  page += "var requestInProgress = false;\n"; // Flag to track if a request is in progress
+  page += "output.innerHTML = slider.value;\n";
+  page += "slider.oninput = function() {\n";
+  page += "  output.innerHTML = this.value;\n";
+  page += "  if (!requestInProgress) {\n"; // Only send request if no request is in progress
+  page += "    updateSlider(this.value);\n";
+  page += "  }\n";
+  page += "}\n";
+  page += "function updateSlider(val) {\n";
+  page += "  requestInProgress = true;\n"; // Set flag to indicate a request is in progress
+  page += "  var xhttp = new XMLHttpRequest();\n";
+  page += "  xhttp.onreadystatechange = function() {\n";
+  page += "    if (this.readyState == 4 && this.status == 200) {\n";
+  page += "      console.log('Value updated');\n";
+  page += "      requestInProgress = false;\n"; // Reset flag when request is complete
+  page += "    }\n";
+  page += "  };\n";
+  page += "  xhttp.open(\"GET\", \"/update?value=\" + val, true);\n";
+  page += "  xhttp.send();\n";
+  page += "}\n";
+  page += "function setToZero() {\n"; // Function to set value to 0
+  page += "  slider.value = 0;\n";
+  page += "  output.innerHTML = 0;\n";
+  page += "  updateSlider(0);\n";
+  page += "}\n";
+  page += "</script>\n";
+  page += "</body>\n";
+  page += "</html>\n";
+  server.send(200, "text/html", page);
 }
 
-void loop() {
-  // Lees de status van de toggle-knop
-  int toggleState = digitalRead(togglePin);
-
-  // Controleer of de toggle-knop is ingedrukt en de vorige status niet hetzelfde is
-  if (toggleState == LOW && prevToggleState == HIGH) {
-    power = !power; // Toggle de stroomtoestand
-    Serial.print("EDF is ");
-    Serial.println(power ? "on" : "off"); // Toon de nieuwe toestand in de console
+void handleUpdate()
+{
+  if (server.hasArg("value"))
+  {
+    String valueStr = server.arg("value");
+    sliderValue = valueStr.toInt();
+    Serial.print("Slider Value: ");
+    Serial.println(sliderValue); // Print slider value to Serial Monitor
+    escValue = map(sliderValue, 0, 100, 1000, 2000);
+    constrain(escValue, 1000, 2000);
+    Serial.print("ESC Value: ");
+    Serial.println(escValue); // Print ESC value to Serial Monitor
   }
+  server.send(200, "text/plain", "OK");
+}
 
-  // Bewaar de huidige status van de toggle-knop voor de volgende iteratie
-  prevToggleState = toggleState;
+void setup()
+{
+  pinMode(escPin, OUTPUT);
 
-  // Als de stroomtoestand true is, lees dan de waarde van de potmeter en zet het om naar een throttle waarde (0-100)
-  if (power) {
-    potValue = analogRead(potPin);
-    throttle = map(potValue, 0, 1023, 0, 100);
-    throttle = constrain(throttle, 0, 100);
+  Serial.begin(115200);
 
-    // Zet de throttle waarde om naar een esc waarde (1000-2000)
-    escValue = map(throttle, 0, 100, 1000, 2000);
-    escValue = constrain(escValue, 1000, 2000);
-
-    // Stuur de esc waarde naar de esc pin met een pulsduur van escValue microseconden
-    digitalWrite(escPin, HIGH);
-    delayMicroseconds(escValue);
-    digitalWrite(escPin, LOW);
-    delayMicroseconds(20000 - escValue);
-
-    // Toon de throttle waarde op de console
-    Serial.print("Throttle: ");
-    Serial.print(throttle);
-    Serial.println("%");
-    Serial.println(escValue);
-  } else {
-    // Als de stroomtoestand false is, stuur dan een esc waarde van 1000 naar de esc pin om de EDF uit te zetten
-    digitalWrite(escPin, HIGH);
-    delayMicroseconds(1000);
-    digitalWrite(escPin, LOW);
-    delayMicroseconds(19000);
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED)
+  {
+    delay(1000);
+    Serial.println("Connecting to WiFi...");
   }
+  Serial.println("Connected to WiFi");
+
+  server.on("/", HTTP_GET, handleRoot);
+  server.on("/update", HTTP_GET, handleUpdate);
+
+  server.begin();
+  Serial.println("HTTP server started");
+}
+
+void loop()
+{
+  server.handleClient();
+
+// Stuur de esc waarde naar de esc pin met een pulsduur van escValue microseconden
+  digitalWrite(escPin, HIGH);
+  delayMicroseconds(escValue);
+  digitalWrite(escPin, LOW);
+  delayMicroseconds(20000 - escValue);
+
+  // Toon de throttle waarde op de console
+  Serial.print("Throttle: ");
+  Serial.print(throttle);
+  Serial.println("%");
+  Serial.println(escValue);
+
   delayMicroseconds(10000);
 }
