@@ -2,49 +2,48 @@
 #include <WebServer.h>
 
 const char *ssid = "ESP32-L";       // Enter your WiFi SSID
-const char *password = "12345678"; // Enter your WiFi Password
+const char *password = "12345678";  // Enter your WiFi Password
 
 WebServer server(80);
 
-int sliderValue = 0; // Initial value
-int escValue;
+int sliderValue = 0;  // Initial value
+int escValue = 1000;
 
-int escPin = 18; // PWM pin for the ESC
+int escPin = 18;  // PWM pin for the ESC
 
-void handleRoot()
-{
+void handleRoot() {
   String page = "<!DOCTYPE html>\n";
   page += "<html>\n";
   page += "<head><title>ESP32 Slider Control</title></head>\n";
   page += "<body>\n";
   page += "<h1>ESP32 Slider Control</h1>\n";
-  page += "<input type=\"range\" min=\"0\" max=\"100\" value=\"" + String(sliderValue) + "\" class=\"slider\" id=\"myRange\" name=\"value\" style=\"width: 80%;\">\n"; // Adjusted size here
+  page += "<input type=\"range\" min=\"0\" max=\"100\" value=\"" + String(sliderValue) + "\" class=\"slider\" id=\"myRange\" name=\"value\" style=\"width: 80%;\">\n";  // Adjusted size here
   page += "<p>Value: <span id=\"demo\">" + String(sliderValue) + "</span></p>\n";
-  page += "<button onclick=\"setToZero()\" style=\"font-size: 30px; padding: 20px;\">ABORT</button>\n"; // Larger button with increased font size and padding
+  page += "<button onclick=\"setToZero()\" style=\"font-size: 30px; padding: 20px;\">ABORT</button>\n";  // Larger button with increased font size and padding
   page += "<script>\n";
   page += "var slider = document.getElementById(\"myRange\");\n";
   page += "var output = document.getElementById(\"demo\");\n";
-  page += "var requestInProgress = false;\n"; // Flag to track if a request is in progress
+  page += "var requestInProgress = false;\n";  // Flag to track if a request is in progress
   page += "output.innerHTML = slider.value;\n";
   page += "slider.oninput = function() {\n";
   page += "  output.innerHTML = this.value;\n";
-  page += "  if (!requestInProgress) {\n"; // Only send request if no request is in progress
+  page += "  if (!requestInProgress) {\n";  // Only send request if no request is in progress
   page += "    updateSlider(this.value);\n";
   page += "  }\n";
   page += "}\n";
   page += "function updateSlider(val) {\n";
-  page += "  requestInProgress = true;\n"; // Set flag to indicate a request is in progress
+  page += "  requestInProgress = true;\n";  // Set flag to indicate a request is in progress
   page += "  var xhttp = new XMLHttpRequest();\n";
   page += "  xhttp.onreadystatechange = function() {\n";
   page += "    if (this.readyState == 4 && this.status == 200) {\n";
   page += "      console.log('Value updated');\n";
-  page += "      requestInProgress = false;\n"; // Reset flag when request is complete
+  page += "      requestInProgress = false;\n";  // Reset flag when request is complete
   page += "    }\n";
   page += "  };\n";
   page += "  xhttp.open(\"GET\", \"/update?value=\" + val, true);\n";
   page += "  xhttp.send();\n";
   page += "}\n";
-  page += "function setToZero() {\n"; // Function to set value to 0
+  page += "function setToZero() {\n";  // Function to set value to 0
   page += "  slider.value = 0;\n";
   page += "  output.innerHTML = 0;\n";
   page += "  updateSlider(0);\n";
@@ -55,10 +54,8 @@ void handleRoot()
   server.send(200, "text/html", page);
 }
 
-void handleUpdate()
-{
-  if (server.hasArg("value"))
-  {
+void handleUpdate() {
+  if (server.hasArg("value")) {
     String valueStr = server.arg("value");
     sliderValue = valueStr.toInt();
     escValue = map(sliderValue, 0, 100, 1000, 2000);
@@ -67,10 +64,9 @@ void handleUpdate()
   server.send(200, "text/plain", "OK");
 }
 
-void setup()
-{
- pinMode(escPin, OUTPUT); //DECOMMENT ALS JE DE CODE GAAT RUNNEN!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+void setup() {
+  pinMode(escPin, OUTPUT);  //DECOMMENT ALS JE DE CODE GAAT RUNNEN!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                            /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   Serial.begin(115200);
   delay(10);
 
@@ -89,7 +85,7 @@ void setup()
   Serial.println("");
   Serial.println("WiFi connected");
   Serial.println("IP address: ");
-  Serial.println(WiFi.localIP());
+
 
   server.on("/", HTTP_GET, handleRoot);
   server.on("/update", HTTP_GET, handleUpdate);
@@ -100,11 +96,10 @@ void setup()
   delay(2000);
 }
 
-void loop()
-{
+void loop() {
   server.handleClient();
 
-// Stuur de esc waarde naar de esc pin met een pulsduur van escValue microseconden
+  // Stuur de esc waarde naar de esc pin met een pulsduur van escValue microseconden
   digitalWrite(escPin, HIGH);
   delayMicroseconds(escValue);
   digitalWrite(escPin, LOW);
@@ -116,5 +111,5 @@ void loop()
   Serial.println("%");
   Serial.println(escValue);
 
-  delayMicroseconds(10000);
+
 }
