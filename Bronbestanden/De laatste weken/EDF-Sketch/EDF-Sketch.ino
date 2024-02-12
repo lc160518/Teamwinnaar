@@ -7,9 +7,9 @@ const char *password = "12345678"; // Enter your WiFi Password
 WebServer server(80);
 
 int sliderValue = 0; // Initial value
-int escValue= 1000;
+int escValue;
 
-int escPin = 19; // PWM pin for the ESC
+int escPin = 18; // PWM pin for the ESC
 
 void handleRoot()
 {
@@ -69,7 +69,7 @@ void handleUpdate()
 
 void setup()
 {
- ///////////////////////////////////////////// pinMode(escPin, OUTPUT); DECOMMENT ALS JE DE CODE GAAT RUNNEN!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+ pinMode(escPin, OUTPUT); //DECOMMENT ALS JE DE CODE GAAT RUNNEN!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   Serial.begin(115200);
   delay(10);

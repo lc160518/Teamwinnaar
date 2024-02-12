@@ -1,47 +1,27 @@
 // Definieer de variabelen voor de Arduino aansluitingen
-int potPin = 2;
-int escPin = 5;
-int togglePin = 3;
+int potPin = 12;
+int escPin = 19;
+
 
 // Definieer de variabelen voor de potmeter en de esc
 int potValue; // De waarde van de potmeter (0-1023)
 int throttle; // De throttle waarde (0-100)
 int escValue; // De esc waarde (1000-2000)
 
-// Definieer de variabele voor de stroomtoestand van EDF
-bool power = false; // De stroomtoestand van de EDF (true of false)
-
-// Definieer de variabele voor de vorige status van de toggle-knop
-int prevToggleState = HIGH;
-
 void setup() {
   // Zet de pinnen als output of input
   pinMode(potPin, INPUT);
   pinMode(escPin, OUTPUT);
-  pinMode(togglePin, INPUT_PULLUP); // Gebruik de interne pull-up weerstand voor de toggle-knop
 
   // Start de seriële communicatie met de console
-  Serial.begin(9600);
   Serial.begin(115200);
 }
 
 void loop() {
-  // Lees de status van de toggle-knop
-  int toggleState = digitalRead(togglePin);
 
-  // Controleer of de toggle-knop is ingedrukt en de vorige status niet hetzelfde is
-  if (toggleState == LOW && prevToggleState == HIGH) {
-    power = !power; // Toggle de stroomtoestand
-    Serial.print("EDF is ");
-    Serial.println(power ? "on" : "off"); // Toon de nieuwe toestand in de console
-  }
-
-  // Bewaar de huidige status van de toggle-knop voor de volgende iteratie
-  prevToggleState = toggleState;
 
   // Als de stroomtoestand true is, lees dan de waarde van de potmeter en zet het om naar een throttle waarde (0-100)
-  if (power) {
-    potValue = analogRead(potPin);
+     potValue = analogRead(potPin);
     throttle = map(potValue, 0, 1023, 0, 100);
     throttle = constrain(throttle, 0, 100);
 
@@ -60,12 +40,8 @@ void loop() {
     Serial.print(throttle);
     Serial.println("%");
     Serial.println(escValue);
-  } else {
+
     // Als de stroomtoestand false is, stuur dan een esc waarde van 1000 naar de esc pin om de EDF uit te zetten
-    digitalWrite(escPin, HIGH);
-    delayMicroseconds(1000);
-    digitalWrite(escPin, LOW);
-    delayMicroseconds(19000);
-  }
+    
   delayMicroseconds(10000);
 }

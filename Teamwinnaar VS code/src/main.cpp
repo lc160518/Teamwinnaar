@@ -1,29 +1,27 @@
+/*
+        Arduino Brushless Motor Control
+     by Dejan, https://howtomechatronics.com
+*/
 #include <Arduino.h>
-#include <ESP32Servo.h>
+#include <Servo.h>
 
-Servo monservo;
+Servo ESC;     // create servo object to control the ESC
 
-int servopin = 17;
-
-int deg = 0;
-
+int potValue;  // value from the analog pin
 
 void setup() {
-  Serial.begin(115200);
-  ESP32PWM::allocateTimer(0); // allocate a timer first
-  monservo.setPeriodHertz(50);
-  monservo.attach(servopin, 500, 2400); // (pin, min pulse width, max pulse width in microseconds)
-  monservo.write(deg); // set servo to mid-point
+  Serial.begin(9600);
+  // Attach the ESC on pin 9
+  ESC.attach(9);
+  ESC.writeMicroseconds(1000); // Send the signal to the ESC
 }
 
 void loop() {
-	
-	if (deg != 180) {
-		deg = 0;
-	}
-	else {
-		deg = 0;
-	}
-	monservo.write(deg)
-	
+
+  
+  potValue = analogRead(A0);   // reads the value of the potentiometer (value between 0 and 1023)
+  potValue = map(potValue, 0, 1023, 1000, 2000);   // scale it to use it with the servo library (value between 0 and 180)
+  
+  Serial.println("Pot Value: " + String(potValue));
+  ESC.writeMicroseconds(potValue);  // Send the signal to the ESC
 }
