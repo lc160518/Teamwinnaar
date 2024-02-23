@@ -64,55 +64,8 @@ PID myPIDx(&x, &correct_x, &Cal_x, Kp, Ki, Kd, DIRECT);
 PID myPIDz(&z, &correct_z, &Cal_z, Kp, Ki, Kd, DIRECT);
 
 
-void motorBusiness(){
-  // Lees de status van de toggle-knop
-  int toggleState = digitalRead(togglePin);
 
-  // Controleer of de toggle-knop is ingedrukt en de vorige status niet hetzelfde is
-  if (toggleState == LOW && prevToggleState == HIGH) {
-    power = !power; // Toggle de stroomtoestand
-  }
-
-  Serial.print("EDF is ");
-  Serial.println(power ? "on" : "off"); // Toon de nieuwe toestand in de console
-  Serial.print("power: ");
-  Serial.println(power);
-
-  // Bewaar de huidige status van de toggle-knop voor de volgende iteratie
-  prevToggleState = toggleState;
-
-  // Als de stroomtoestand true is, lees dan de waarde van de potmeter en zet het om naar een throttle waarde (0-100)
-  if (power) {
-    potValue = analogRead(potPin);
-    throttle = map(potValue, 0, 1023, 0, 100);
-    throttle = constrain(throttle, 0, 100);
-
-    // Zet de throttle waarde om naar een esc waarde (1000-2000)
-    escValue = map(throttle, 0, 100, 1000, 2000);
-    escValue = constrain(escValue, 1000, 2000);
-
-    // Stuur de esc waarde naar de esc pin met een pulsduur van escValue microseconden
-    digitalWrite(escPin, HIGH);
-    delayMicroseconds(escValue);
-    digitalWrite(escPin, LOW);
-    delayMicroseconds(20000 - escValue);
-
-    // Toon de throttle waarde op de console
-    Serial.print("Throttle: ");
-    Serial.print(throttle);
-    Serial.println("%");
-    Serial.print("Speed controller: ");
-    Serial.println(escValue);
-  } else {
-    // Als de stroomtoestand false is, stuur dan een esc waarde van 1000 naar de esc pin om de EDF uit te zetten
-    digitalWrite(escPin, HIGH);
-    delayMicroseconds(1000);
-    digitalWrite(escPin, LOW);
-    delayMicroseconds(19000);
-  }
-  delayMicroseconds(10000);
-}
-
+// De functie voor het aansturen van de EDF  (potmeter versie
 void motorBusiness(){
   // Als de stroomtoestand true is, lees dan de waarde van de potmeter en zet het om naar een throttle waarde (0-100)
     potValue = analogRead(potPin);
@@ -211,20 +164,7 @@ void correctDirection(){
   }
 }
 
-void setup() {  
-  // Starts the communication with the gyro
-  Wire.begin();
-  Wire.beginTransmission(MPU_addr);
-  Wire.write(0x6B);
-  Wire.write(0);
-  Wire.endTransmission(true);
-  Serial.begin(115200);
-
-  // Zet de pinnen als output of input
-  pinMode(potPin, INPUT);
-  pinMode(escPin, OUTPUT);
-  pinMode(togglePin, INPUT_PULLUP); // Gebruik de interne pull-up weerstand voor de toggle-knop
-
+void attachServo(){
   // connect the servo's
   servo_x1.setPeriodHertz(50);    // standard 50 hz servo
 	servo_x1.attach(servo_x1_pin, 500, 2400); // attaches the servo to it's pin
@@ -240,7 +180,9 @@ void setup() {
   servo_x2.write(servo_0);
   servo_z1.write(servo_0);
   servo_z2.write(servo_0);
+}
 
+void calPID(){
   Serial.println("Calibrating");
   // calibrate the x and z values
   for(byte i = 0; i < 10; i = i + 1){
@@ -260,6 +202,26 @@ void setup() {
   Serial.println(Cal_z);
   myPIDx.SetMode(AUTOMATIC);
   myPIDz.SetMode(AUTOMATIC);
+}
+
+void setup() {  
+  // Starts the communication with the gyro
+  Wire.begin();
+  Wire.beginTransmission(MPU_addr);
+  Wire.write(0x6B);
+  Wire.write(0);
+  Wire.endTransmission(true);
+  Serial.begin(115200);
+
+  // Zet de pinnen als output of input
+  pinMode(potPin, INPUT);
+  pinMode(escPin, OUTPUT);
+  pinMode(togglePin, INPUT_PULLUP); // Gebruik de interne pull-up weerstand voor de toggle-knop
+
+  attachServo();
+
+  calPID();
+
 }
 
 void loop() {
