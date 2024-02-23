@@ -6,7 +6,6 @@
 // Definieer de variabelen voor de Arduino aansluitingen
 #define potPin 34 // De potmeter is verbonden met analoge pin D4
 #define escPin 18 // De esc is verbonden met digitale pin D5
-#define togglePin 35 // De toggle-knop is verbonden met digitale pin D18
 
 // Definieer de variabelen voor de potmeter en de esc
 int potValue, throttle, escValue;
@@ -122,6 +121,7 @@ void printValues(){
   Serial.println(correct_z);
 }
 
+// het omdraaien van sommige variabelen maar zeker niet alle
 void reverse_directions(){
   //PID only works in one way, this makes it work in both ways
   if(x > Cal_x){
@@ -143,6 +143,7 @@ void reverse_directions(){
   }
 }
 
+// het connected van de servo's en naar 90 graden zetten
 void attachServos(){
   // connect the servo's
   servo_x1.setPeriodHertz(50);    // standard 50 hz servo
@@ -161,6 +162,7 @@ void attachServos(){
   servo_z2.write(servo_0);
 }
 
+// het calibreren van de PID
 void calPID(){
   Serial.println("Calibrating");
   // calibrate the x and z values
@@ -195,8 +197,6 @@ void setup() {
   // Zet de pinnen als output of input
   pinMode(potPin, INPUT);
   pinMode(escPin, OUTPUT);
-  pinMode(togglePin, INPUT_PULLUP); // Gebruik de interne pull-up weerstand voor de toggle-knop
-
   attachServos();
 
   calPID();
@@ -204,13 +204,9 @@ void setup() {
 }
 
 void loop() {
-  // starts motor and that jazz
   motorBusiness();
-
-  // Measures the location of the gyro
   readGyro();
-  // makes PID go both ways
-  reverse_directions()
+  reverse_directions(); 
   
   // The PID part
   myPIDx.Compute();
