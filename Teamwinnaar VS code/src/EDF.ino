@@ -1,3 +1,7 @@
+#define "EDF.h"
+//
+
+
 void motorBusiness(){
   // Als de stroomtoestand true is, lees dan de waarde van de potmeter en zet het om naar een throttle waarde (0-100)
     potValue = analogRead(potPin);
