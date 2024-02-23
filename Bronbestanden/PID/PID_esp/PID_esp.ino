@@ -4,8 +4,8 @@
 #include <PID_v1.h>
 
 // Definieer de variabelen voor de Arduino aansluitingen
-#define potPin 34 // De potmeter is verbonden met analoge pin D4
-#define escPin 18 // De esc is verbonden met digitale pin D5
+const int potPin = 34; // De potmeter is verbonden met analoge pin D4
+const int escPin = 18; // De esc is verbonden met digitale pin D5
 
 // Definieer de variabelen voor de potmeter en de esc
 int potValue, throttle, escValue;
@@ -29,6 +29,7 @@ const double Kp = 0.02;
 const double Ki = 0.01;
 const double Kd = 0.00000005;
 
+// Definieer de servo's en de pinnen waar ze op aangesloten zijn en de standaard positie
 Servo servo_x1, servo_x2, servo_z1, servo_z2;
 const int servo_x1_pin = 14;
 const int servo_x2_pin = 13;
