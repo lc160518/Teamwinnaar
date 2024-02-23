@@ -1,137 +1,221 @@
-/*
-   Arduino and MPU6050 Accelerometer and Gyroscope Sensor Tutorial
-   by Dejan, https://howtomechatronics.com
-*/
 #include <Wire.h>
+#include <ESP32Servo.h>
 #include <Arduino.h>
+#include <PID_v1.h>
+#include "EDF.h"
 
-const int MPU = 0x68; // MPU6050 I2C address
-float AccX, AccY, AccZ;
-float GyroX, GyroY, GyroZ;
-float accAngleX, accAngleY, gyroAngleX, gyroAngleY, gyroAngleZ;
-float roll, pitch, yaw;
-float AccErrorX, AccErrorY, GyroErrorX, GyroErrorY, GyroErrorZ;
-float elapsedTime, currentTime, previousTime;
-int c = 0;
+// Definieer de variabelen voor de Arduino aansluitingen
+#define potPin 34 // De potmeter is verbonden met analoge pin D4
+#define escPin 18 // De esc is verbonden met digitale pin D5
+#define togglePin 35 // De toggle-knop is verbonden met digitale pin D18
 
-void calculate_IMU_error() {
-  // We can call this funtion in the setup section to calculate the accelerometer and gyro data error. From here we will get the error values used in the above equations printed on the Serial Monitor.
-  // Note that we should place the IMU flat in order to get the proper values, so that we then can the correct values
-  // Read accelerometer values 200 times
-  while (c < 200) {
-    Wire.beginTransmission(MPU);
-    Wire.write(0x3B);
-    Wire.endTransmission(false);
-    Wire.requestFrom(MPU, 6, 1);
-    AccX = (Wire.read() << 8 | Wire.read()) / 16384.0 ;
-    AccY = (Wire.read() << 8 | Wire.read()) / 16384.0 ;
-    AccZ = (Wire.read() << 8 | Wire.read()) / 16384.0 ;
-    // Sum all readings
-    AccErrorX = AccErrorX + ((atan((AccY) / sqrt(pow((AccX), 2) + pow((AccZ), 2))) * 180 / PI));
-    AccErrorY = AccErrorY + ((atan(-1 * (AccX) / sqrt(pow((AccY), 2) + pow((AccZ), 2))) * 180 / PI));
-    c++;
-  }
-  //Divide the sum by 200 to get the error value
-  AccErrorX = AccErrorX / 200;
-  AccErrorY = AccErrorY / 200;
-  c = 0;
-  // Read gyro values 200 times
-  while (c < 200) {
-    Wire.beginTransmission(MPU);
-    Wire.write(0x43);
-    Wire.endTransmission(false);
-    Wire.requestFrom(MPU, 6, 1);
-    GyroX = Wire.read() << 8 | Wire.read();
-    GyroY = Wire.read() << 8 | Wire.read();
-    GyroZ = Wire.read() << 8 | Wire.read();
-    // Sum all readings
-    GyroErrorX = GyroErrorX + (GyroX / 131.0);
-    GyroErrorY = GyroErrorY + (GyroY / 131.0);
-    GyroErrorZ = GyroErrorZ + (GyroZ / 131.0);
-    c++;
-  }
-  //Divide the sum by 200 to get the error value
-  GyroErrorX = GyroErrorX / 200;
-  GyroErrorY = GyroErrorY / 200;
-  GyroErrorZ = GyroErrorZ / 200;
-  // Print the error values on the Serial Monitor
-  Serial.println(" ---------------------------------------------");
-  Serial.print("AccErrorX: ");
-  Serial.println(AccErrorX);
-  Serial.print("AccErrorY: ");
-  Serial.println(AccErrorY);
-  Serial.print("GyroErrorX: ");
-  Serial.println(GyroErrorX);
-  Serial.print("GyroErrorY: ");
-  Serial.println(GyroErrorY);
-  Serial.print("GyroErrorZ: ");
-  Serial.println(GyroErrorZ);
+// Definieer de variabelen voor de potmeter en de esc
+int potValue; // De waarde van de potmeter (0-1023)
+int throttle; // De throttle waarde (0-100)
+int escValue; // De esc waarde (1000-2000)
+
+// Definieer de variabele voor de stroomtoestand van EDF
+bool power = false; // De stroomtoestand van de EDF (true of false)
+
+// Definieer de variabele voor de vorige status van de toggle-knop
+int prevToggleState = HIGH;
+
+const int MPU_addr=0x68;
+int16_t AcX,AcY,AcZ,Tmp,GyX,GyY,GyZ;
+ 
+int minVal=265;
+int maxVal=402;
+ 
+double x;
+double y;
+double z;
+
+bool reverseX;
+bool reverseZ;
+
+double x_tot;
+double z_tot;
+
+double Cal_x;
+double Cal_z;
+
+double correct_x;
+double correct_z;
+
+// Determines how much the correction has to go
+double weight = 1;
+
+const double Kp = 0.02;
+const double Ki = 0.01;
+const double Kd = 0.00000005;
+
+Servo servo_x1;
+Servo servo_x2;
+Servo servo_z1;
+Servo servo_z2;
+
+const int servo_x1_pin = 14;
+const int servo_x2_pin = 13;
+const int servo_z1_pin = 27;
+const int servo_z2_pin = 12;
+
+const int servo_0 = 90;
+
+PID myPIDx(&x, &correct_x, &Cal_x, Kp, Ki, Kd, DIRECT);
+PID myPIDz(&z, &correct_z, &Cal_z, Kp, Ki, Kd, DIRECT);
+
+
+
+
+
+
+void readGyro(){
+  Wire.beginTransmission(MPU_addr);
+  Wire.write(0x68);
+  Wire.endTransmission(false);
+  Wire.requestFrom(MPU_addr,14, 1);
+  AcX=Wire.read()<<8|Wire.read();
+  AcY=Wire.read()<<8|Wire.read();
+  AcZ=Wire.read()<<8|Wire.read();
+  GyX=Wire.read()<<8|Wire.read();
+  GyY=Wire.read()<<8|Wire.read();
+  GyZ=Wire.read()<<8|Wire.read();
+  int xAng = map(AcX,minVal,maxVal,-90,90);
+  int yAng = map(AcY,minVal,maxVal,-90,90);
+  int zAng = map(AcZ,minVal,maxVal,-90,90);
+  
+  x= RAD_TO_DEG * (atan2(-yAng, -zAng)+PI);
+  y= RAD_TO_DEG * (atan2(-xAng, -zAng)+PI);
+  z= RAD_TO_DEG * (atan2(-yAng, -xAng)+PI);
 }
 
-void setup() {
+void printValues(){
+  // print the values just to be safe
+  Serial.print("\t");
+  Serial.print("x");
+  Serial.print("\t");
+  Serial.println("z");
+
+  Serial.print("Input:");
+  Serial.print("\t");
+  Serial.print(x);
+  Serial.print("\t");
+  Serial.println(z);
+
+  Serial.print("Cal:");
+  Serial.print("\t");
+  Serial.print(Cal_x);
+  Serial.print("\t");
+  Serial.println(Cal_z);
+
+  Serial.print("Output:");
+  Serial.print("\t");
+  Serial.print(correct_x);
+  Serial.print("\t");
+  Serial.println(correct_z);
+}
+
+void correctDirection(){
+  //PID only works in one way, this makes it work in both ways
+  if(x > Cal_x){
+    myPIDx.SetControllerDirection(REVERSE);
+    reverseX = true;
+  }
+  else{
+    myPIDx.SetControllerDirection(DIRECT);
+    reverseX= false;
+  }
+
+  if(z > Cal_z){
+    myPIDz.SetControllerDirection(REVERSE);
+    reverseZ = true;
+  }
+  else{
+    myPIDz.SetControllerDirection(DIRECT);
+    reverseZ = false;
+  }
+}
+
+void setup() {  
+  // Starts the communication with the gyro
+  Wire.begin();
+  Wire.beginTransmission(MPU_addr);
+  Wire.write(0x6B);
+  Wire.write(0);
+  Wire.endTransmission(true);
   Serial.begin(115200);
-  Wire.begin();                      // Initialize comunication
-  Wire.beginTransmission(MPU);       // Start communication with MPU6050 // MPU=0x68
-  Wire.write(0x6B);                  // Talk to the register 6B
-  Wire.write(0x00);                  // Make reset - place a 0 into the 6B register
-  Wire.endTransmission(true);        //end the transmission
-  /*
-  // Configure Accelerometer Sensitivity - Full Scale Range (default +/- 2g)
-  Wire.beginTransmission(MPU);
-  Wire.write(0x1C);                  //Talk to the ACCEL_CONFIG register (1C hex)
-  Wire.write(0x10);                  //Set the register bits as 00010000 (+/- 8g full scale range)
-  Wire.endTransmission(true);
-  // Configure Gyro Sensitivity - Full Scale Range (default +/- 250deg/s)
-  Wire.beginTransmission(MPU);
-  Wire.write(0x1B);                   // Talk to the GYRO_CONFIG register (1B hex)
-  Wire.write(0x10);                   // Set the register bits as 00010000 (1000deg/s full scale)
-  Wire.endTransmission(true);
-  delay(20);
-  */
-  // Call this function if you need to get the IMU error values for your module
-  calculate_IMU_error();
-  delay(20);
-} 
+
+  // Zet de pinnen als output of input
+  pinMode(potPin, INPUT);
+  pinMode(escPin, OUTPUT);
+  pinMode(togglePin, INPUT_PULLUP); // Gebruik de interne pull-up weerstand voor de toggle-knop
+
+  // connect the servo's
+  servo_x1.setPeriodHertz(50);    // standard 50 hz servo
+	servo_x1.attach(servo_x1_pin, 500, 2400); // attaches the servo to it's pin
+  servo_x2.setPeriodHertz(50);    // standard 50 hz servo
+	servo_x2.attach(servo_x2_pin, 500, 2400); // attaches the servo to it's pin
+  servo_z1.setPeriodHertz(50);    // standard 50 hz servo
+	servo_z1.attach(servo_z1_pin, 500, 2400); // attaches the servo to it's pin
+  servo_z2.setPeriodHertz(50);    // standard 50 hz servo
+	servo_z2.attach(servo_z2_pin, 500, 2400); // attaches the servo to it's pin
+
+  // reset the servo to it's base positions
+  servo_x1.write(servo_0);
+  servo_x2.write(servo_0);
+  servo_z1.write(servo_0);
+  servo_z2.write(servo_0);
+
+  Serial.println("Calibrating");
+  // calibrate the x and z values
+  for(byte i = 0; i < 10; i = i + 1){
+    readGyro();
+    x_tot = x_tot + x;
+    z_tot = z_tot + z;
+    Serial.print(".");
+  }
+  Serial.println("");
+
+  Cal_x = x_tot / 10;
+  Cal_z = z_tot / 10;
+
+  Serial.print("Cal_x: ");
+  Serial.println(Cal_x);
+  Serial.print("Cal_z: ");
+  Serial.println(Cal_z);
+  myPIDx.SetMode(AUTOMATIC);
+  myPIDz.SetMode(AUTOMATIC);
+}
+
 void loop() {
-  // === Read acceleromter data === //
-  Wire.beginTransmission(MPU);
-  Wire.write(0x3B); // Start with register 0x3B (ACCEL_XOUT_H)
-  Wire.endTransmission(false);
-  Wire.requestFrom(MPU, 6, 1); // Read 6 registers total, each axis value is stored in 2 registers
-  //For a range of +-2g, we need to divide the raw values by 16384, according to the datasheet
-  AccX = (Wire.read() << 8 | Wire.read()) / 16384.0; // X-axis value
-  AccY = (Wire.read() << 8 | Wire.read()) / 16384.0; // Y-axis value
-  AccZ = (Wire.read() << 8 | Wire.read()) / 16384.0; // Z-axis value
-  // Calculating Roll and Pitch from the accelerometer data
-  accAngleX = (atan(AccY / sqrt(pow(AccX, 2) + pow(AccZ, 2))) * 180 / PI) - 0.58; // AccErrorX ~(0.58) See the calculate_IMU_error()custom function for more details
-  accAngleY = (atan(-1 * AccX / sqrt(pow(AccY, 2) + pow(AccZ, 2))) * 180 / PI) + 1.58; // AccErrorY ~(-1.58)
-  // === Read gyroscope data === //
-  previousTime = currentTime;        // Previous time is stored before the actual time read
-  currentTime = millis();            // Current time actual time read
-  elapsedTime = (currentTime - previousTime) / 1000; // Divide by 1000 to get seconds
-  Wire.beginTransmission(MPU);
-  Wire.write(0x43); // Gyro data first register address 0x43
-  Wire.endTransmission(false);
-  Wire.requestFrom(MPU, 6, 1); // Read 4 registers total, each axis value is stored in 2 registers
-  GyroX = (Wire.read() << 8 | Wire.read()) / 131.0; // For a 250deg/s range we have to divide first the raw value by 131.0, according to the datasheet
-  GyroY = (Wire.read() << 8 | Wire.read()) / 131.0;
-  GyroZ = (Wire.read() << 8 | Wire.read()) / 131.0;
-  // Correct the outputs with the calculated error values
-  GyroX = GyroX + 0.56; // GyroErrorX ~(-0.56)
-  GyroY = GyroY - 2; // GyroErrorY ~(2)
-  GyroZ = GyroZ + 0.79; // GyroErrorZ ~ (-0.8)
-  // Currently the raw values are in degrees per seconds, deg/s, so we need to multiply by sendonds (s) to get the angle in degrees
-  gyroAngleX = gyroAngleX + GyroX * elapsedTime; // deg/s * s = deg
-  gyroAngleY = gyroAngleY + GyroY * elapsedTime;
-  yaw =  yaw + GyroZ * elapsedTime;
-  // Complementary filter - combine acceleromter and gyro angle values
-  roll = 0.96 * gyroAngleX + 0.04 * accAngleX;
-  pitch = 0.96 * gyroAngleY + 0.04 * accAngleY;
+  // starts motor and that jazz
+  motorBusiness();
+
+  // Measures the location of the gyro
+  readGyro();
+  // makes PID go both ways
+  correctDirection();
   
-  // Print the values on the serial monitor
-  Serial.print(roll);
-  Serial.print("/");
-  Serial.print(pitch);
-  Serial.print("/");
-  Serial.println(yaw);
+  // The PID part
+  myPIDx.Compute();
+  map(correct_x, 0, 255, 0, 90);
+  myPIDz.Compute();
+  map(correct_z, 0, 255, 0, 90);
+  printValues();
+
+  // The PID value will always be positive so this is to make it go two ways instead of ons
+  if(reverseX){
+    correct_x = -1 * correct_x;
+  }
+  if(reverseZ){
+    correct_z = -1 * correct_z;
+  }
+
+  // Zet de servo's op de goede plek
+  servo_x1.write(servo_0 - (weight * correct_x));
+  servo_x2.write(servo_0 + (weight * correct_x));
+  servo_z1.write(servo_0 - (weight * correct_z));
+  servo_z2.write(servo_0 + (weight * correct_z));
+  
+  delay(10);
 }
