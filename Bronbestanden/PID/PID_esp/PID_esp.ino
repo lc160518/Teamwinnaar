@@ -9,63 +9,41 @@
 #define togglePin 35 // De toggle-knop is verbonden met digitale pin D18
 
 // Definieer de variabelen voor de potmeter en de esc
-int potValue; // De waarde van de potmeter (0-1023)
-int throttle; // De throttle waarde (0-100)
-int escValue; // De esc waarde (1000-2000)
-
-// Definieer de variabele voor de stroomtoestand van EDF
-bool power = false; // De stroomtoestand van de EDF (true of false)
-
-// Definieer de variabele voor de vorige status van de toggle-knop
-int prevToggleState = HIGH;
-
+int potValue, throttle, escValue;
 const int MPU_addr=0x68;
 int16_t AcX,AcY,AcZ,Tmp,GyX,GyY,GyZ;
- 
+
+// Definieer de variabelen voor de gyro
 int minVal=265;
 int maxVal=402;
- 
-double x;
-double y;
-double z;
 
-bool reverseX;
-bool reverseZ;
-
-double x_tot;
-double z_tot;
-
-double Cal_x;
-double Cal_z;
-
-double correct_x;
-double correct_z;
+// Definieer de variabelen voor de gyro
+double x, y, z;
+bool reverseX, reverseZ;
+double x_tot, z_tot;
+double Cal_x, Cal_z;
+double correct_x, correct_z;
 
 // Determines how much the correction has to go
 double weight = 1;
-
 const double Kp = 0.02;
 const double Ki = 0.01;
 const double Kd = 0.00000005;
 
-Servo servo_x1;
-Servo servo_x2;
-Servo servo_z1;
-Servo servo_z2;
-
+Servo servo_x1, servo_x2, servo_z1, servo_z2;
 const int servo_x1_pin = 14;
 const int servo_x2_pin = 13;
 const int servo_z1_pin = 27;
 const int servo_z2_pin = 12;
-
 const int servo_0 = 90;
+
 
 PID myPIDx(&x, &correct_x, &Cal_x, Kp, Ki, Kd, DIRECT);
 PID myPIDz(&z, &correct_z, &Cal_z, Kp, Ki, Kd, DIRECT);
 
 
 
-// De functie voor het aansturen van de EDF  (potmeter versie
+// De functie voor het aansturen van de EDF  (potmeter versie)
 void motorBusiness(){
   // Als de stroomtoestand true is, lees dan de waarde van de potmeter en zet het om naar een throttle waarde (0-100)
     potValue = analogRead(potPin);
@@ -96,7 +74,7 @@ void motorBusiness(){
     delayMicroseconds(19000);
 }
 
-
+// het uitlezen van de gyro en opslaan als graden als x, y en z
 void readGyro(){
   Wire.beginTransmission(MPU_addr);
   Wire.write(0x68);
@@ -117,6 +95,7 @@ void readGyro(){
   z= RAD_TO_DEG * (atan2(-yAng, -xAng)+PI);
 }
 
+// het printen van de x, y, z & cal_x, cal_z & correct_x, correct_z
 void printValues(){
   // print the values just to be safe
   Serial.print("\t");
@@ -143,7 +122,7 @@ void printValues(){
   Serial.println(correct_z);
 }
 
-void correctDirection(){
+void reverse_directions(){
   //PID only works in one way, this makes it work in both ways
   if(x > Cal_x){
     myPIDx.SetControllerDirection(REVERSE);
@@ -164,7 +143,7 @@ void correctDirection(){
   }
 }
 
-void attachServo(){
+void attachServos(){
   // connect the servo's
   servo_x1.setPeriodHertz(50);    // standard 50 hz servo
 	servo_x1.attach(servo_x1_pin, 500, 2400); // attaches the servo to it's pin
@@ -218,7 +197,7 @@ void setup() {
   pinMode(escPin, OUTPUT);
   pinMode(togglePin, INPUT_PULLUP); // Gebruik de interne pull-up weerstand voor de toggle-knop
 
-  attachServo();
+  attachServos();
 
   calPID();
 
@@ -231,7 +210,7 @@ void loop() {
   // Measures the location of the gyro
   readGyro();
   // makes PID go both ways
-  correctDirection();
+  reverse_directions()
   
   // The PID part
   myPIDx.Compute();
