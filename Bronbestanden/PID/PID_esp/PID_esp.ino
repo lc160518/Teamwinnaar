@@ -195,14 +195,10 @@ void setup() {
   pinMode(togglePin, INPUT_PULLUP); // Gebruik de interne pull-up weerstand voor de toggle-knop
 
   // connect the servo's
-  servo_x1.setPeriodHertz(50);    // standard 50 hz servo
-	servo_x1.attach(servo_x1_pin, 500, 2400); // attaches the servo to it's pin
-  servo_x2.setPeriodHertz(50);    // standard 50 hz servo
-	servo_x2.attach(servo_x2_pin, 500, 2400); // attaches the servo to it's pin
-  servo_z1.setPeriodHertz(50);    // standard 50 hz servo
-	servo_z1.attach(servo_z1_pin, 500, 2400); // attaches the servo to it's pin
-  servo_z2.setPeriodHertz(50);    // standard 50 hz servo
-	servo_z2.attach(servo_z2_pin, 500, 2400); // attaches the servo to it's pin
+	servo_x1.attach(servo_x1_pin);
+	servo_x2.attach(servo_x2_pin);
+  servo_z1.attach(servo_z1_pin);
+	servo_z2.attach(servo_z2_pin); 
 
   // reset the servo to it's base positions
   servo_x1.write(servo_0);
@@ -212,7 +208,7 @@ void setup() {
 
   Serial.println("Calibrating");
   // calibrate the x and z values
-  for(byte i = 0; i < 10; i = i + 1){
+  for(byte i = 0; i < 100; i = i + 1){
     readGyro();
     x_tot = x_tot + x;
     z_tot = z_tot + z;
@@ -220,8 +216,8 @@ void setup() {
   }
   Serial.println("");
 
-  Cal_x = x_tot / 10;
-  Cal_z = z_tot / 10;
+  Cal_x = x_tot / 100;
+  Cal_z = z_tot / 100;
 
   Serial.print("Cal_x: ");
   Serial.println(Cal_x);
@@ -232,22 +228,21 @@ void setup() {
 }
 
 void loop() {
-  // starts motor and that jazz
+  // starts motor
   motorBusiness();
 
   // Measures the location of the gyro
   readGyro();
+  
   // makes PID go both ways
   correctDirection();
   
   // The PID part
   myPIDx.Compute();
-  map(correct_x, 0, 255, 0, 90);
   myPIDz.Compute();
-  map(correct_x, 0, 255, 0, 90);
   printValues();
 
-  // The PID value will always be positive so this is to make it go two ways instead of ons
+  // The PID value will always be positive so this is to allow the script to go two ways instead of one
   if(reverseX){
     correct_x = -1 * correct_x;
   }

@@ -35,7 +35,7 @@ state_vector = {"ax": 0, "vx": 0, "px": 0, "az": 0, "vz": 1, "pz": 0, "alpha": 0
 rocket_phys = phys.threeDofPhysics(state_vector, vehicle.mass, vehicle.mmoi)
 
 # Controller setup
-# controller = pid.PID(0.1, 0.02, 0.04, 0)  # KP,KI,KD,setpoint
+controller = pid.PID(0.1, 0.2, 0.04, 0)  # KP,KI,KD,setpoint
 # Ku = 1.6
 # Tu = 0.4s
 # Kp = 0.6 * Ku =0.96
