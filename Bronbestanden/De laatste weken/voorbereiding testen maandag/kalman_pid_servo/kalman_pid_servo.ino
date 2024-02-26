@@ -256,8 +256,8 @@ void loop()
   PrevErrorRateYaw = PIDReturn[1];
   PrevItermRateYaw = PIDReturn[2];
 
-  servo1.write(InputRoll);
-  servo2.write(-InputRoll);
-  servo3.write(InputPitch);
-  servo4.write(-InputPitch);
+  servo1.write(KalmanAngleRoll);
+  servo2.write(-KalmanAngleRoll);
+  servo3.write(KalmanAnglePitch);
+  servo4.write(-KalmanAnglePitch);
 }
