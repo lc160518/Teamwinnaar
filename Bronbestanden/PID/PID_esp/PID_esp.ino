@@ -2,9 +2,6 @@
 #include <ESP32Servo.h>
 #include <Arduino.h>
 #include <PID_v1.h>
-#include <ESPAsyncWebServer.h>
-#include <WiFi.h>
-#include <AsyncTCP.h> // https://github.com/me-no-dev/AsyncTCP
 
 // Definieer de variabelen voor de Arduino aansluitingen
 const int potPin = 34; // De potmeter is verbonden met analoge pin D4
@@ -44,31 +41,6 @@ const int servo_0 = 90;
 PID myPIDx(&x, &correct_x, &Cal_x, Kp, Ki, Kd, DIRECT);
 PID myPIDz(&z, &correct_z, &Cal_z, Kp, Ki, Kd, DIRECT);
 
-const char* ssid = "JULIAN";
-const char* password = "12345678";
-
-AsyncWebServer server(80);
-
-void wifiConnect() {
-  WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-  }
-  Serial.println(WiFi.localIP());
-  server.begin();
-}
-void post_output(){
-    server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send(200, "text/html", "<html><body><script>setInterval(function(){fetch('/newline_output').then(response => response.text()).then(data => document.getElementById('newline_output').innerText = data);}, 1000);</script><h1 id='newline_output'></h1></body></html>");
-  });
-
-  server.on("/newline_output", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send(200, "text/plain", PID_functie());
-  });
-
-  server.begin();
-}
 
 
 // De functie voor het aansturen van de EDF  (potmeter versie)
@@ -227,7 +199,6 @@ void setup() {
   pinMode(potPin, INPUT);
   pinMode(escPin, OUTPUT);
   attachServos();
-  wifiConnect();
 
   calPID();
 
@@ -237,8 +208,7 @@ void loop() {
   motorBusiness();
   readGyro();
   reverse_directions(); 
-  post_output();
-
+  
   // The PID part
   myPIDx.Compute();
   myPIDz.Compute();
