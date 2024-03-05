@@ -31,10 +31,10 @@ const double Kd = 0.00000005;
 
 // Definieer de servo's en de pinnen waar ze op aangesloten zijn en de standaard positie
 Servo servo_x1, servo_x2, servo_z1, servo_z2;
-const int servo_x1_pin = 14;
-const int servo_x2_pin = 13;
-const int servo_z1_pin = 27;
-const int servo_z2_pin = 12;
+const int servo_x1_pin = 5;
+const int servo_x2_pin = 17;
+const int servo_z1_pin = 23;
+const int servo_z2_pin = 19;
 const int servo_0 = 90;
 
 
@@ -77,7 +77,7 @@ void motorBusiness(){
 // het uitlezen van de gyro en opslaan als graden als x, y en z
 void readGyro(){
   Wire.beginTransmission(MPU_addr);
-  Wire.write(0x68);
+  Wire.write(0x3B);
   Wire.endTransmission(false);
   Wire.requestFrom(MPU_addr,14, 1);
   AcX=Wire.read()<<8|Wire.read();
@@ -93,6 +93,7 @@ void readGyro(){
   x= RAD_TO_DEG * (atan2(-yAng, -zAng)+PI);
   y= RAD_TO_DEG * (atan2(-xAng, -zAng)+PI);
   z= RAD_TO_DEG * (atan2(-yAng, -xAng)+PI);
+  x = y;
 }
 
 // het printen van de x, y, z & cal_x, cal_z & correct_x, correct_z
@@ -205,7 +206,7 @@ void setup() {
 }
 
 void loop() {
-  motorBusiness();
+  //motorBusiness();
   readGyro();
   reverse_directions(); 
   
@@ -228,5 +229,5 @@ void loop() {
   servo_z1.write(servo_0 - (weight * correct_z));
   servo_z2.write(servo_0 + (weight * correct_z));
   
-  delay(10);
+  delay(400);
 }

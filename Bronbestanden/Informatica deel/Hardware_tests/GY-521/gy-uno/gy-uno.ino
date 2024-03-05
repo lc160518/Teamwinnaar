@@ -1,11 +1,11 @@
 #include<Wire.h>
-const int MPU=0x69; 
+const int MPU=0x68; 
 int16_t AcX,AcY,AcZ,Tmp,GyX,GyY,GyZ;
 
 void  setup(){
   Wire.begin();
   Wire.beginTransmission(MPU);
-  Wire.write(0x69);  
+  Wire.write(0x68);  
   Wire.write(0);    
   Wire.endTransmission(true);
   Serial.begin(9600);
