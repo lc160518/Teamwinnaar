@@ -2,6 +2,8 @@
 #include <ESP32Servo.h>
 #include <Arduino.h>
 #include <PID_v1.h>
+#include <Kalman.h>
+
 
 // Definieer de variabelen voor de Arduino aansluitingen
 const int potPin = 34; // De potmeter is verbonden met analoge pin D4
@@ -41,7 +43,10 @@ const int servo_0 = 90;
 PID myPIDx(&x, &correct_x, &Cal_x, Kp, Ki, Kd, DIRECT);
 PID myPIDz(&z, &correct_z, &Cal_z, Kp, Ki, Kd, DIRECT);
 
-
+//Kalman filter objects
+KalmanFilter kf_x(x, 0.001, 0.0001);
+KalmanFilter kf_y(y, 0.001, 0.0001);
+KalmanFilter kf_z(z, 0.001, 0.0001);
 
 // De functie voor het aansturen van de EDF  (potmeter versie)
 void motorBusiness(){
@@ -90,9 +95,9 @@ void readGyro(){
   int yAng = map(AcY,minVal,maxVal,-90,90);
   int zAng = map(AcZ,minVal,maxVal,-90,90);
   
-  x= RAD_TO_DEG * (atan2(-yAng, -zAng)+PI);
-  y= RAD_TO_DEG * (atan2(-xAng, -zAng)+PI);
-  z= RAD_TO_DEG * (atan2(-yAng, -xAng)+PI);
+  x = kf_x.updateEstimate(RAD_TO_DEG * (atan2(-yAng, -zAng)+PI));
+  y = kf_y.updateEstimate(RAD_TO_DEG * (atan2(-xAng, -zAng)+PI));
+  z = kf_z.updateEstimate(RAD_TO_DEG * (atan2(-xAng, -zAng)+PI));
   x = y;
 }
 
@@ -144,7 +149,28 @@ void reverse_directions(){
     reverseZ = false;
   }
 }
+// Functie voor het koppelen van servo's aan assen (Yaw en Pitch)
+void controlYawPitch(){
+  // PID berekening
+  myPIDx.Compute();
+  myPIDz.Compute();
 
+  // Begrenzing van PID output (optioneel)
+  correct_x = constrain(correct_x, -limit, limit);  // limit is a defined value
+  correct_z = constrain(correct_z, -limit, limit);
+
+  // Berekening van gewogen servo posities
+  int servo_x_pos = servo_0 + (weight * correct_x);
+  int servo_z_pos = servo_0 + (weight * correct_z);
+
+  // Besturing van tegenoverliggende servo's (Yaw)
+  servo_x1.write(servo_x_pos);
+  servo_x2.write(2 * servo_0 - servo_x_pos);  // 2*servo_0 is the maximum angle
+
+  // Besturing van tegenoverliggende servo's (Pitch)
+  servo_z1.write(servo_z_pos);
+  servo_z2.write(2 * servo_0 - servo_z_pos);
+}
 // het connected van de servo's en naar 90 graden zetten
 void attachServos(){
   // connect the servo's
@@ -206,28 +232,19 @@ void setup() {
 }
 
 void loop() {
-  //motorBusiness();
   readGyro();
   reverse_directions(); 
-  
-  // The PID part
-  myPIDx.Compute();
-  myPIDz.Compute();
-  printValues();
+  controlYawPitch();
 
   // The PID value will always be positive so this is to make it go two ways instead of ons
   if(reverseX){
-    correct_x = -1 * correct_x;
+    correct_x = -1 * correct_x; //@ruben, is dit nodig?
   }
   if(reverseZ){
     correct_z = -1 * correct_z;
   }
+//  motorBusiness();
 
-  // Zet de servo's op de goede plek
-  servo_x1.write(servo_0 - (weight * correct_x));
-  servo_x2.write(servo_0 + (weight * correct_x));
-  servo_z1.write(servo_0 - (weight * correct_z));
-  servo_z2.write(servo_0 + (weight * correct_z));
   
   delay(400);
 }
