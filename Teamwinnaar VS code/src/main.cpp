@@ -1,208 +1,115 @@
-#include <Wire.h>
-#include <ESP32Servo.h>
-#include <Arduino.h>
-#include <PIDController.h>
+#include <WiFi.h>
+#include <WebServer.h>
 
-// Definieer de variabelen voor de Arduino aansluitingen
-const int potPin = 34; // De potmeter is verbonden met analoge pin D4
-const int escPin = 18; // De esc is verbonden met digitale pin D5
+const char *ssid = "ESP32-J";       // Enter your WiFi SSID
+const char *password = "12345678";  // Enter your WiFi Password
 
-// Definieer de variabelen voor de potmeter en de esc
-int potValue, throttle, escValue;
-const int MPU_addr=0x68;
-int16_t AcX,AcY,AcZ,Tmp,GyX,GyY,GyZ;
+WebServer server(80);
 
-// Definieer de variabelen voor de gyro
-int minVal=265;
-int maxVal=402;
+int sliderValue = 0;  // Initial value
+int escValue = 1000;
 
-// Definieer de variabelen voor de gyro
-double x, y, z;
-bool reverseX, reverseZ;
-double x_tot, z_tot;
-double Cal_x, Cal_z;
-double correct_x, correct_z;
+int escPin = 18;  // PWM pin for the ESC
 
-// Determines how much the correction has to go
-double weight = 1;
-
-// Definieer de servo's en de pinnen waar ze op aangesloten zijn en de standaard positie
-Servo servo_x1, servo_x2, servo_z1, servo_z2;
-const int servo_x1_pin = 5;
-const int servo_x2_pin = 17;
-const int servo_z1_pin = 23;
-const int servo_z2_pin = 19;
-const int servo_0 = 90;
-
-PIDController pid;
-
-// De functie voor het aansturen van de EDF  (potmeter versie)
-void motorBusiness(){
-  // Als de stroomtoestand true is, lees dan de waarde van de potmeter en zet het om naar een throttle waarde (0-100)
-    potValue = analogRead(potPin);
-    throttle = map(potValue, 0, 1023, 0, 100);
-    throttle = constrain(throttle, 0, 100);
-
-    // Zet de throttle waarde om naar een esc waarde (1000-2000)
-    escValue = map(throttle, 0, 100, 1000, 2000);
-    escValue = constrain(escValue, 1000, 2000);
-
-    // Stuur de esc waarde naar de esc pin met een pulsduur van escValue microseconden
-    digitalWrite(escPin, HIGH);
-    delayMicroseconds(escValue);
-    digitalWrite(escPin, LOW);
-    delayMicroseconds(20000 - escValue);
-
-    // Toon de throttle waarde op de console
-    Serial.print("Throttle: ");
-    Serial.print(throttle);
-    Serial.println("%");
-    Serial.print("Speed controller: ");
-    Serial.println(escValue);
-
-    // Als de stroomtoestand false is, stuur dan een esc waarde van 1000 naar de esc pin om de EDF uit te zetten
-    digitalWrite(escPin, HIGH);
-    delayMicroseconds(1000);
-    digitalWrite(escPin, LOW);
-    delayMicroseconds(19000);
+void handleRoot() {
+  String page = "<!DOCTYPE html>\n";
+  page += "<html>\n";
+  page += "<head><title>ESP32 Slider Control</title></head>\n";
+  page += "<body>\n";
+  page += "<h1>ESP32 Slider Control</h1>\n";
+  page += "<input type=\"range\" min=\"0\" max=\"100\" value=\"" + String(sliderValue) + "\" class=\"slider\" id=\"myRange\" name=\"value\" style=\"width: 80%;\">\n";  // Adjusted size here
+  page += "<p>Value: <span id=\"demo\">" + String(sliderValue) + "</span></p>\n";
+  page += "<button onclick=\"setToZero()\" style=\"font-size: 30px; padding: 20px;\">ABORT</button>\n";  // Larger button with increased font size and padding
+  page += "<script>\n";
+  page += "var slider = document.getElementById(\"myRange\");\n";
+  page += "var output = document.getElementById(\"demo\");\n";
+  page += "var requestInProgress = false;\n";  // Flag to track if a request is in progress
+  page += "output.innerHTML = slider.value;\n";
+  page += "slider.oninput = function() {\n";
+  page += "  output.innerHTML = this.value;\n";
+  page += "  if (!requestInProgress) {\n";  // Only send request if no request is in progress
+  page += "    updateSlider(this.value);\n";
+  page += "  }\n";
+  page += "}\n";
+  page += "function updateSlider(val) {\n";
+  page += "  requestInProgress = true;\n";  // Set flag to indicate a request is in progress
+  page += "  var xhttp = new XMLHttpRequest();\n";
+  page += "  xhttp.onreadystatechange = function() {\n";
+  page += "    if (this.readyState == 4 && this.status == 200) {\n";
+  page += "      console.log('Value updated');\n";
+  page += "      requestInProgress = false;\n";  // Reset flag when request is complete
+  page += "    }\n";
+  page += "  };\n";
+  page += "  xhttp.open(\"GET\", \"/update?value=\" + val, true);\n";
+  page += "  xhttp.send();\n";
+  page += "}\n";
+  page += "function setToZero() {\n";  // Function to set value to 0
+  page += "  slider.value = 0;\n";
+  page += "  output.innerHTML = 0;\n";
+  page += "  updateSlider(0);\n";
+  page += "}\n";
+  page += "</script>\n";
+  page += "</body>\n";
+  page += "</html>\n";
+  server.send(200, "text/html", page);
 }
 
-// het uitlezen van de gyro en opslaan als graden als x, y en z
-void readGyro(){
-  Wire.beginTransmission(MPU_addr);
-  Wire.write(0x3B);
-  Wire.endTransmission(false);
-  Wire.requestFrom(MPU_addr,14, 1);
-  AcX=Wire.read()<<8|Wire.read();
-  AcY=Wire.read()<<8|Wire.read();
-  AcZ=Wire.read()<<8|Wire.read();
-  GyX=Wire.read()<<8|Wire.read();
-  GyY=Wire.read()<<8|Wire.read();
-  GyZ=Wire.read()<<8|Wire.read();
-  int xAng = map(AcX,minVal,maxVal,-90,90);
-  int yAng = map(AcY,minVal,maxVal,-90,90);
-  int zAng = map(AcZ,minVal,maxVal,-90,90);
-  
-  x= RAD_TO_DEG * (atan2(-yAng, -zAng)+PI);
-  y= RAD_TO_DEG * (atan2(-xAng, -zAng)+PI);
-  z= RAD_TO_DEG * (atan2(-yAng, -xAng)+PI);
-  x = y;
+void handleUpdate() {
+  if (server.hasArg("value")) {
+    String valueStr = server.arg("value");
+    sliderValue = valueStr.toInt();
+    escValue = map(sliderValue, 0, 100, 1000, 2000);
+    constrain(escValue, 1000, 2000);
+  }
+  server.send(200, "text/plain", "OK");
 }
 
-// het printen van de x, y, z & cal_x, cal_z & correct_x, correct_z
-void printValues(){
-  // print the values just to be safe
-  Serial.print("\t");
-  Serial.print("x");
-  Serial.print("\t");
-  Serial.println("z");
+void setup() {
+  pinMode(escPin, OUTPUT);  //DECOMMENT ALS JE DE CODE GAAT RUNNEN MET VERBONDEN ESC!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                            /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  Serial.begin(115200);
+  delay(10);
 
-  Serial.print("Input:");
-  Serial.print("\t");
-  Serial.print(x);
-  Serial.print("\t");
-  Serial.println(z);
+  Serial.println();
+  Serial.println();
+  Serial.print("Connecting to ");
+  Serial.println(ssid);
 
-  Serial.print("Cal:");
-  Serial.print("\t");
-  Serial.print(Cal_x);
-  Serial.print("\t");
-  Serial.println(Cal_z);
+  WiFi.begin(ssid, password);
 
-  Serial.print("Output:");
-  Serial.print("\t");
-  Serial.print(correct_x);
-  Serial.print("\t");
-  Serial.println(correct_z);
-}
-
-// het connected van de servo's en naar 90 graden zetten
-void attachServos(){
-  // connect the servo's
-  servo_x1.setPeriodHertz(50);    // standard 50 hz servo
-	servo_x1.attach(servo_x1_pin, 500, 2400); // attaches the servo to it's pin
-  servo_x2.setPeriodHertz(50);    // standard 50 hz servo
-	servo_x2.attach(servo_x2_pin, 500, 2400); // attaches the servo to it's pin
-  servo_z1.setPeriodHertz(50);    // standard 50 hz servo
-	servo_z1.attach(servo_z1_pin, 500, 2400); // attaches the servo to it's pin
-  servo_z2.setPeriodHertz(50);    // standard 50 hz servo
-	servo_z2.attach(servo_z2_pin, 500, 2400); // attaches the servo to it's pin
-
-  // reset the servo to it's base positions
-  servo_x1.write(servo_0);
-  servo_x2.write(servo_0);
-  servo_z1.write(servo_0);
-  servo_z2.write(servo_0);
-}
-
-// het calibreren van de PID
-void calPID(){
-  Serial.println("Calibrating");
-  // calibrate the x and z values
-  for(byte i = 0; i < 10; i = i + 1){
-    readGyro();
-    x_tot = x_tot + x;
-    z_tot = z_tot + z;
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
     Serial.print(".");
   }
+
   Serial.println("");
+  Serial.println("WiFi connected");
+  Serial.println("IP address: ");
 
-  Cal_x = x_tot / 10;
-  Cal_z = z_tot / 10;
 
-  Serial.print("Cal_x: ");
-  Serial.println(Cal_x);
-  Serial.print("Cal_z: ");
-  Serial.println(Cal_z);
-}
+  server.on("/", HTTP_GET, handleRoot);
+  server.on("/update", HTTP_GET, handleUpdate);
 
-void setPIDx(){
-  pid.setpoint(Cal_x);
-  pid.limit(-90, 90);
-}
+  server.begin();
+  Serial.println("HTTP server started");
 
-void setup() {  
-  // Starts the communication with the gyro
-  Wire.begin();
-  Wire.beginTransmission(MPU_addr);
-  Wire.write(0x6B);
-  Wire.write(0);
-  Wire.endTransmission(true);
-  Serial.begin(115200);
-  pid.begin();
-  setPIDx();
-
-  // Zet de pinnen als output of input
-  pinMode(potPin, INPUT);
-  pinMode(escPin, OUTPUT);
-  attachServos();
-  calPID();
+  delay(2000);
 }
 
 void loop() {
-  //motorBusiness();
-  readGyro();
-  //printValues();
+  server.handleClient();
 
-  // The PID value will always be positive so this is to make it go two ways instead of ons
-  if(reverseX){
-    correct_x = -1 * correct_x;
-  }
-  if(reverseZ){
-    correct_z = -1 * correct_z;
-  }
+  // Stuur de esc waarde naar de esc pin met een pulsduur van escValue microseconden
+  digitalWrite(escPin, HIGH);
+  delayMicroseconds(escValue);
+  digitalWrite(escPin, LOW);
+  delayMicroseconds(20000 - escValue);
 
-  //print callx
-  int servo_x = pid.compute(x);
-  Serial.println(servo_x);
+  // Toon de throttle waarde op de console
+  Serial.print("Throttle: ");
+  Serial.print(sliderValue);
+  Serial.println("%");
+  Serial.println(escValue);
 
-  // Zet de servo's op de goede plek
-  servo_x1.write(servo_0 - (weight * correct_x));
-  servo_x2.write(servo_0 + (weight * correct_x));
-  servo_z1.write(servo_0 - (weight * correct_z));
-  servo_z2.write(servo_0 + (weight * correct_z));
-  
-  delay(30);
+
 }
-
-

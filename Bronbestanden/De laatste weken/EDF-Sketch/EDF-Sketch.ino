@@ -58,8 +58,9 @@ void handleUpdate() {
   if (server.hasArg("value")) {
     String valueStr = server.arg("value");
     sliderValue = valueStr.toInt();
-    escValue = map(sliderValue, 0, 100, 1000, 2000);
-    constrain(escValue, 1000, 2000);
+    escValue = map(sliderValue, 0, 100, 1000, 2600);
+    constrain(escValue, 1000, 2600);
+
   }
   server.send(200, "text/plain", "OK");
 }
