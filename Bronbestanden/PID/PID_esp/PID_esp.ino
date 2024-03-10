@@ -2,7 +2,7 @@
 #include <ESP32Servo.h>
 #include <Arduino.h>
 #include <PID_v1.h>
-#include <Kalman.h>
+#include <SimpleKalmanFilter.h>
 
 
 // Definieer de variabelen voor de Arduino aansluitingen
@@ -44,9 +44,9 @@ PID myPIDx(&x, &correct_x, &Cal_x, Kp, Ki, Kd, DIRECT);
 PID myPIDz(&z, &correct_z, &Cal_z, Kp, Ki, Kd, DIRECT);
 
 //Kalman filter objects
-KalmanFilter kf_x(x, 0.001, 0.0001);
-KalmanFilter kf_y(y, 0.001, 0.0001);
-KalmanFilter kf_z(z, 0.001, 0.0001);
+SimpleKalmanFilter  kf_x(x, 0.001, 0.0001);
+SimpleKalmanFilter  kf_y(y, 0.001, 0.0001);
+SimpleKalmanFilter  kf_z(z, 0.001, 0.0001);
 
 // De functie voor het aansturen van de EDF  (potmeter versie)
 void motorBusiness(){
@@ -154,7 +154,9 @@ void controlYawPitch(){
   // PID berekening
   myPIDx.Compute();
   myPIDz.Compute();
-
+ 
+ int limit = 90;
+ 
   // Begrenzing van PID output (optioneel)
   correct_x = constrain(correct_x, -limit, limit);  // limit is a defined value
   correct_z = constrain(correct_z, -limit, limit);
