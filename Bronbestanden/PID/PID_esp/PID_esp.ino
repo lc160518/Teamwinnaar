@@ -4,7 +4,6 @@
 #include <PID_v1.h>
 #include <SimpleKalmanFilter.h>
 
-
 // Definieer de variabelen voor de Arduino aansluitingen
 const int potPin = 34; // De potmeter is verbonden met analoge pin D4
 const int escPin = 18; // De esc is verbonden met digitale pin D5
@@ -27,16 +26,22 @@ double correct_x, correct_z;
 
 // Determines how much the correction has to go
 double weight = 1;
-const double Kp = 0.02;
-const double Ki = 0.01;
-const double Kd = 0.00000005;
+const double Kp = 0.2;
+const double Ki = 0.1;
+const double Kd = 0.0000005;
 
 // Definieer de servo's en de pinnen waar ze op aangesloten zijn en de standaard positie
 Servo servo_x1, servo_x2, servo_z1, servo_z2;
-const int servo_x1_pin = 5;
-const int servo_x2_pin = 17;
-const int servo_z1_pin = 23;
-const int servo_z2_pin = 19;
+
+// servo1_pin = D19
+// servo2_pin = D5
+// servo3_pin = D17
+// servo4_pin = D23
+
+const int servo_x1_pin = 19;
+const int servo_x2_pin = 5;
+const int servo_z1_pin = 17;
+const int servo_z2_pin = 23;
 const int servo_0 = 90;
 
 
@@ -151,12 +156,21 @@ void reverse_directions(){
 }
 // Functie voor het koppelen van servo's aan assen (Yaw en Pitch)
 void controlYawPitch(){
+  reverse_directions(); 
+  
   // PID berekening
   myPIDx.Compute();
   myPIDz.Compute();
  
  int limit = 90;
- 
+   
+  // The PID value will always be positive so this is to make it go two ways instead of ons
+  if(reverseX){
+    correct_x = -1 * correct_x; //@ruben, is dit nodig? ja
+  }
+  if(reverseZ){
+    correct_z = -1 * correct_z;
+  }
   // Begrenzing van PID output (optioneel)
   correct_x = constrain(correct_x, -limit, limit);  // limit is a defined value
   correct_z = constrain(correct_z, -limit, limit);
@@ -164,6 +178,9 @@ void controlYawPitch(){
   // Berekening van gewogen servo posities
   int servo_x_pos = servo_0 + (weight * correct_x);
   int servo_z_pos = servo_0 + (weight * correct_z);
+
+  Serial.print("servo_x_pos = "); Serial.println(servo_x_pos);
+  Serial.print("servo_z_pos = "); Serial.println(servo_z_pos); Serial.println("");
 
   // Besturing van tegenoverliggende servo's (Yaw)
   servo_x1.write(servo_x_pos);
@@ -173,6 +190,7 @@ void controlYawPitch(){
   servo_z1.write(servo_z_pos);
   servo_z2.write(2 * servo_0 - servo_z_pos);
 }
+
 // het connected van de servo's en naar 90 graden zetten
 void attachServos(){
   // connect the servo's
@@ -195,17 +213,16 @@ void attachServos(){
 // het calibreren van de PID
 void calPID(){
   Serial.println("Calibrating");
+  int num_samples = 100;
   // calibrate the x and z values
-  for(byte i = 0; i < 10; i = i + 1){
+  for(byte i = 0; i < num_samples; i = i + 1){
     readGyro();
     x_tot = x_tot + x;
     z_tot = z_tot + z;
-    Serial.print(".");
   }
-  Serial.println("");
 
-  Cal_x = x_tot / 10;
-  Cal_z = z_tot / 10;
+  Cal_x = x_tot / num_samples;
+  Cal_z = z_tot / num_samples;
 
   Serial.print("Cal_x: ");
   Serial.println(Cal_x);
@@ -235,16 +252,8 @@ void setup() {
 
 void loop() {
   readGyro();
-  reverse_directions(); 
   controlYawPitch();
 
-  // The PID value will always be positive so this is to make it go two ways instead of ons
-  if(reverseX){
-    correct_x = -1 * correct_x; //@ruben, is dit nodig?
-  }
-  if(reverseZ){
-    correct_z = -1 * correct_z;
-  }
 //  motorBusiness();
 
   
