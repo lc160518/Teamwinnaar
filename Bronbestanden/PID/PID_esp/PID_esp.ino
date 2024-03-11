@@ -3,7 +3,8 @@
 #include <Arduino.h>
 #include <PID_v1.h>
 #include <SimpleKalmanFilter.h>
-
+#include <WiFi.h>
+#include <WebServer.h>
 // Definieer de variabelen voor de Arduino aansluitingen
 const int potPin = 34; // De potmeter is verbonden met analoge pin D4
 const int escPin = 18; // De esc is verbonden met digitale pin D5
@@ -53,17 +54,69 @@ SimpleKalmanFilter  kf_x(x, 0.001, 0.0001);
 SimpleKalmanFilter  kf_y(y, 0.001, 0.0001);
 SimpleKalmanFilter  kf_z(z, 0.001, 0.0001);
 
+//Webpagina functie
+void handleRoot() {
+  String page = "<!DOCTYPE html>\n";
+  page += "<html>\n";
+  page += "<head><title>ESP32 Slider Control</title></head>\n";
+  page += "<body>\n";
+  page += "<h1>ESP32 Slider Control</h1>\n";
+  page += "<input type=\"range\" min=\"0\" max=\"100\" value=\"" + String(sliderValue) + "\" class=\"slider\" id=\"myRange\" name=\"value\" style=\"width: 80%;\">\n";
+  page += "<p>Value: <span id=\"demo\">" + String(sliderValue) + "</span></p>\n";
+  page += "<input type=\"number\" id=\"manualInput\" value=\"" + String(sliderValue) + "\" min=\"0\" max=\"100\" style=\"width: 80%;\">\n";
+  page += "<button onclick=\"setToZero()\" style=\"font-size: 30px; padding: 20px;\">ABORT</button>\n";
+  page += "<button onclick=\"updateSliderFromInput()\" style=\"font-size: 30px; padding: 20px;\">Update Slider</button>\n";
+  page += "<script>\n";
+  page += "var slider = document.getElementById(\"myRange\");\n";
+  page += "var output = document.getElementById(\"demo\");\n";
+  page += "var manualInput = document.getElementById(\"manualInput\");\n";
+  page += "output.innerHTML = slider.value;\n";
+  page += "slider.oninput = function() {\n";
+  page += "  output.innerHTML = this.value;\n";
+  page += "  updateSlider(this.value);\n"; // Update the slider value and send the update
+  page += "}\n";
+  page += "function updateSliderFromInput() {\n";
+  page += "  var inputValue = parseInt(manualInput.value);\n";
+  page += "  if (!isNaN(inputValue) && inputValue >= 0 && inputValue <= 100) {\n";
+  page += "    slider.value = inputValue;\n";
+  page += "    output.innerHTML = inputValue;\n"; // Update the displayed value next to the slider
+  page += "    updateSlider(inputValue);\n";
+  page += "  }\n";
+  page += "}\n";
+  page += "function updateSlider(val) {\n";
+  page += "  var xhttp = new XMLHttpRequest();\n";
+  page += "  xhttp.onreadystatechange = function() {\n";
+  page += "    if (this.readyState == 4 && this.status == 200) {\n";
+  page += "      console.log('Value updated');\n";
+  page += "    }\n";
+  page += "  };\n";
+  page += "  xhttp.open(\"GET\", \"/update?value=\" + val, true);\n";
+  page += "  xhttp.send();\n";
+  page += "}\n";
+  page += "function setToZero() {\n";
+  page += "  slider.value = 0;\n";
+  page += "  output.innerHTML = 0;\n";
+  page += "  updateSlider(0);\n";
+  page += "}\n";
+  page += "</script>\n";
+  page += "</body>\n";
+  page += "</html>\n";
+  server.send(200, "text/html", page);
+}
+
+void handleUpdate() {
+  if (server.hasArg("value")) {
+    String valueStr = server.arg("value");
+    sliderValue = valueStr.toInt();
+    escValue = map(sliderValue, 0, 100, 1000, 3000);
+    escValue = constrain(escValue, 1000, 3000);
+
+  }
+  server.send(200, "text/plain", "OK");
+}
+
 // De functie voor het aansturen van de EDF  (potmeter versie)
 void motorBusiness(){
-  // Als de stroomtoestand true is, lees dan de waarde van de potmeter en zet het om naar een throttle waarde (0-100)
-    potValue = analogRead(potPin);
-    throttle = map(potValue, 0, 1023, 0, 100);
-    throttle = constrain(throttle, 0, 100);
-
-    // Zet de throttle waarde om naar een esc waarde (1000-2000)
-    escValue = map(throttle, 0, 100, 1000, 2000);
-    escValue = constrain(escValue, 1000, 2000);
-
     // Stuur de esc waarde naar de esc pin met een pulsduur van escValue microseconden
     digitalWrite(escPin, HIGH);
     delayMicroseconds(escValue);
@@ -162,11 +215,11 @@ void controlYawPitch(){
   myPIDx.Compute();
   myPIDz.Compute();
  
- int limit = 90;
+ int limit = 45;
    
   // The PID value will always be positive so this is to make it go two ways instead of ons
   if(reverseX){
-    correct_x = -1 * correct_x; //@ruben, is dit nodig? ja
+    correct_x = -1 * correct_x; 
   }
   if(reverseZ){
     correct_z = -1 * correct_z;
@@ -195,13 +248,13 @@ void controlYawPitch(){
 void attachServos(){
   // connect the servo's
   servo_x1.setPeriodHertz(50);    // standard 50 hz servo
-	servo_x1.attach(servo_x1_pin, 500, 2400); // attaches the servo to it's pin
+	servo_x1.attach(servo_x1_pin, 500, 2400); // attaches the servo to its pin
   servo_x2.setPeriodHertz(50);    // standard 50 hz servo
-	servo_x2.attach(servo_x2_pin, 500, 2400); // attaches the servo to it's pin
+	servo_x2.attach(servo_x2_pin, 500, 2400); // attaches the servo to its pin
   servo_z1.setPeriodHertz(50);    // standard 50 hz servo
-	servo_z1.attach(servo_z1_pin, 500, 2400); // attaches the servo to it's pin
+	servo_z1.attach(servo_z1_pin, 500, 2400); // attaches the servo to its pin
   servo_z2.setPeriodHertz(50);    // standard 50 hz servo
-	servo_z2.attach(servo_z2_pin, 500, 2400); // attaches the servo to it's pin
+	servo_z2.attach(servo_z2_pin, 500, 2400); // attaches the servo to its pin
 
   // reset the servo to it's base positions
   servo_x1.write(servo_0);
@@ -240,7 +293,28 @@ void setup() {
   Wire.write(0);
   Wire.endTransmission(true);
   Serial.begin(115200);
+  Serial.print("Connecting to ");
+  Serial.println(ssid);
 
+  WiFi.begin(ssid, password);
+
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+
+  Serial.println("");
+  Serial.println("WiFi connected");
+  Serial.println("IP address: ");
+
+
+  server.on("/", HTTP_GET, handleRoot);
+  server.on("/update", HTTP_GET, handleUpdate);
+
+  server.begin();
+  Serial.println("HTTP server started");
+
+  delay(2000);
   // Zet de pinnen als output of input
   pinMode(potPin, INPUT);
   pinMode(escPin, OUTPUT);
@@ -251,6 +325,7 @@ void setup() {
 }
 
 void loop() {
+  server.handleClient();
   readGyro();
   controlYawPitch();
 
